@@ -29,6 +29,7 @@ char map[MAX_STAGES][MAP_HEIGHT][MAP_WIDTH + 1];
 int player_x, player_y;
 int stage = 0;
 int score = 0;
+int heart = 3; //생명력 3으로 초기화
 
 // 플레이어 상태
 int is_jumping = 0;
@@ -45,17 +46,26 @@ int coin_count = 0;
 struct termios orig_termios;
 
 // 함수 선언
-void disable_raw_mode();
-void enable_raw_mode();
-void load_maps();
-void init_stage();
-void draw_game();
-void update_game(char input);
-void move_player(char input);
-void move_enemies();
-void check_collisions();
+void disable_raw_mode(); // // 터미널 Raw 모드 활성화/비활성화
+void enable_raw_mode(); // 터미널 Raw 모드 활성화/비활성화
+void load_maps(); // 맵 파일 로드
+void init_stage(); // 현재 스테이지 초기화
+void draw_game(); // 게임 화면 그리기
+void update_game(char input); // 게임 상태 업데이트
+void move_player(char input); // 플레이어 이동 로직
+void move_enemies(); // 적 이동 로직
+void check_collisions(); // 충돌 감지 로직
+void heart_discount(); // heart가 0 일때 종료 함수
 int kbhit();
 
+void heart_discount(){
+    if (heart <= 0) {
+        printf("Game Over!");
+        printf("\n모든 생명을 소모하셨습니다.\n");
+        disable_raw_mode();
+        exit(0);
+    }
+}
 int main() {
     srand(time(NULL));
     enable_raw_mode();
@@ -169,7 +179,7 @@ void init_stage() {
 // 게임 화면 그리기
 void draw_game() {
     printf("\x1b[2J\x1b[H");
-    printf("Stage: %d | Score: %d\n", stage + 1, score);
+    printf("Stage: %d | Score: %d | Heart: %d \n", stage + 1, score, heart);
     printf("조작: ← → (이동), ↑ ↓ (사다리), Space (점프), q (종료)\n");
 
     char display_map[MAP_HEIGHT][MAP_WIDTH + 1];
@@ -285,6 +295,8 @@ void move_enemies() {
 void check_collisions() {
     for (int i = 0; i < enemy_count; i++) {
         if (player_x == enemies[i].x && player_y == enemies[i].y) {
+            heart--; // 충돌시 생명 감소
+            heart_discount(); //heart 수 계산하고 종료
             score = (score > 50) ? score - 50 : 0;
             init_stage();
             return;
