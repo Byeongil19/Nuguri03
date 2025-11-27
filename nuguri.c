@@ -8,8 +8,8 @@
 
 // 맵 및 게임 요소 정의 (수정된 부분)
 #define MAP_WIDTH 40  // 맵 너비를 40으로 변경
-#define MAP_HEIGHT 20
-#define MAX_STAGES 2
+#define MAP_HEIGHT 40 // map.txt를 확인한 결과 높이 40
+#define MAX_STAGES 2 // map.txt에 스테이지 추가할때 증가시킬것
 #define MAX_ENEMIES 15 // 최대 적 개수 증가
 #define MAX_COINS 30   // 최대 코인 개수 증가
 
@@ -25,14 +25,14 @@ typedef struct {
 } Coin;
 
 // 전역 변수
-char map[MAX_STAGES][MAP_HEIGHT][MAP_WIDTH + 1];
-int player_x, player_y;
+char map[MAX_STAGES][MAP_HEIGHT][MAP_WIDTH + 1]; // 왜 MAP_WIDTH는 +1을 하나요? 엔터로 칸을 구분하기 때문임
+int player_x, player_y; //플래이어 2차원 위치
 int stage = 0;
 int score = 0;
 
 // 플레이어 상태
 int is_jumping = 0;
-int velocity_y = 0;
+int velocity_y = 0; //속도
 int on_ladder = 0;
 
 // 게임 객체
@@ -58,11 +58,11 @@ int kbhit();
 
 int main() {
     srand(time(NULL));
-    enable_raw_mode();
-    load_maps();
-    init_stage();
+    enable_raw_mode(); //터미널 row 활성화
+    load_maps(); //맵 다운
+    init_stage(); //맵 초기화
 
-    char c = '\0';
+    char c = '\0'; // 초기값 Null
     int game_over = 0;
 
     while (!game_over && stage < MAX_STAGES) {
@@ -72,7 +72,7 @@ int main() {
                 game_over = 1;
                 continue;
             }
-            if (c == '\x1b') {
+            if (c == '\x1b') { //ESC를 입력 받았을 때
                 getchar(); // '['
                 switch (getchar()) {
                     case 'A': c = 'w'; break; // Up
@@ -85,11 +85,11 @@ int main() {
             c = '\0';
         }
 
-        update_game(c);
-        draw_game();
-        usleep(90000);
+        update_game(c); // 플래이어 이동-> 적 이동 -> 충돌감지
+        draw_game(); //게임화면 그리기
+        usleep(90000); // 
 
-        if (map[stage][player_y][player_x] == 'E') {
+        if (map[stage][player_y][player_x] == 'E') { //출구 도착
             stage++;
             score += 100;
             if (stage < MAX_STAGES) {
@@ -103,7 +103,7 @@ int main() {
         }
     }
 
-    disable_raw_mode();
+    disable_raw_mode(); //터미널 row 비활성화
     return 0;
 }
 
@@ -125,7 +125,7 @@ void load_maps() {
         perror("map.txt 파일을 열 수 없습니다.");
         exit(1);
     }
-    int s = 0, r = 0;
+    int s = 0, r = 0; //s 는 스테이지 숫자 r는 맵 높이용
     char line[MAP_WIDTH + 2]; // 버퍼 크기는 MAP_WIDTH에 따라 자동 조절됨
     while (s < MAX_STAGES && fgets(line, sizeof(line), file)) {
         if ((line[0] == '\n' || line[0] == '\r') && r > 0) {
@@ -143,16 +143,17 @@ void load_maps() {
 }
 
 
-// 현재 스테이지 초기화
+// 현재 스테이지 초기화 -> 처음 시작할때, 플래이어가 죽었을때
 void init_stage() {
     enemy_count = 0;
     coin_count = 0;
     is_jumping = 0;
     velocity_y = 0;
+    on_ladder = 0; //이 줄은 없었지만 사다리를 타는것도 초기화 해야하지 않을까요?
 
     for (int y = 0; y < MAP_HEIGHT; y++) {
         for (int x = 0; x < MAP_WIDTH; x++) {
-            char cell = map[stage][y][x];
+            char cell = map[stage][y][x]; //y,x =높이, 너비 순임
             if (cell == 'S') {
                 player_x = x;
                 player_y = y;
@@ -204,7 +205,7 @@ void draw_game() {
     }
 }
 
-// 게임 상태 업데이트
+// 게임 상태 업데이트 플래이어 -> 적 -> 충돌여부 확인
 void update_game(char input) {
     move_player(input);
     move_enemies();
@@ -213,21 +214,21 @@ void update_game(char input) {
 
 // 플레이어 이동 로직
 void move_player(char input) {
-    int next_x = player_x, next_y = player_y;
-    char floor_tile = (player_y + 1 < MAP_HEIGHT) ? map[stage][player_y + 1][player_x] : '#';
-    char current_tile = map[stage][player_y][player_x];
+    int next_x = player_x, next_y = player_y; //기존 위치 저장
+    char floor_tile = (player_y + 1 < MAP_HEIGHT) ? map[stage][player_y + 1][player_x] : '#'; //발밑 블럭 확인용 맵 데이터에서 읽을 수 있는 범위인지 확인 -> 아니라면 '#'으로 취급
+    char current_tile = map[stage][player_y][player_x]; //지금 위치(추측)
 
     on_ladder = (current_tile == 'H');
 
-    switch (input) {
+    switch (input) { //입력에 따라서 새로운 좌표 생성
         case 'a': next_x--; break;
         case 'd': next_x++; break;
         case 'w': if (on_ladder) next_y--; break;
-        case 's': if (on_ladder && (player_y + 1 < MAP_HEIGHT) && map[stage][player_y + 1][player_x] != '#') next_y++; break;
+        case 's': if (on_ladder && (player_y + 1 < MAP_HEIGHT) && map[stage][player_y + 1][player_x] != '#') next_y++; break; // 사다리 + 발밑 확인후 가능하면 이동
         case ' ':
             if (!is_jumping && (floor_tile == '#' || on_ladder)) {
                 is_jumping = 1;
-                velocity_y = -2;
+                velocity_y = -2; // 점프 높이는 2칸
             }
             break;
     }
