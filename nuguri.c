@@ -210,6 +210,14 @@ int main(void) {
     srand(time(NULL));
     enable_raw_mode();
     load_maps();
+    if (!init_sdl_mixer()) {
+        printf("SDL_mixer 초기화 실패!\n");
+    } 
+    else { // BGM 실행
+        if (!play_bgm(-1)) {
+            printf("BGM 로드 실패!\n");
+        }
+    }
     init_stage();
 
     char c = '\0';
@@ -252,7 +260,7 @@ int main(void) {
             }
         }
     }
-
+    close_sdl_mixer(); // 오디오 종료
     disable_raw_mode();
     return 0;
 }
@@ -435,6 +443,7 @@ void check_collisions(void) {
         if (!coins[i].collected && player_x == coins[i].x && player_y == coins[i].y) {
             coins[i].collected = 1;
             score += 20;
+            play_sfx(); // 코인 획득시 효과음
         }
     }
 }
