@@ -91,7 +91,7 @@ int main() {
 
         update_game(c); // 플래이어 이동-> 적 이동 -> 충돌감지
         draw_game(); //게임화면 그리기
-        usleep(100000); // 테스트용 1프래임
+        usleep(100000); // 테스트용 느린 프래임
 
         if (map[stage][player_y][player_x] == 'E') { //출구 도착
             stage++;
@@ -134,9 +134,11 @@ void load_maps() {
     while (s < MAX_STAGES && fgets(line, sizeof(line), file)) {
 
         if (line[0] == '\n' || line[0] == '\r') { //멥 하나 로드가 끝났나요?
-            printf(" -> 빈 줄, s=%d r=%d 에서 스킵\n", s, r);
-            if(r >= MAP_HEIGHT - 1) {
-                s++;
+            //printf(" -> 빈 줄, s=%d r=%d 에서 스킵\n", s, r); 로직 확인용
+            if(r >= MAP_HEIGHT) { // 맵 크기 세로가 20칸이고 다음 줄이 구분선이라고 가정함
+                if (++s >= MAX_STAGES) { //혹시나 하고 넣은 맵 개수 제한선
+                    break;
+                }
                 r = 0;
             }
             continue;
@@ -232,46 +234,56 @@ void move_player(char input) {
     char current_tile = map[stage][player_y][player_x]; //지금 위치(추측)
 
     on_ladder = (current_tile == 'H');
-
+    printf("[before] key=s=%c, py=%d ny=%d floor='%c' on_ladder=%d jumpower'%d' below='%c'\n",
+       input , player_y, next_y, floor_tile, on_ladder, velocity_y,
+       map[stage][player_y + 1][player_x]); // 입력 확인용
+    printf("%c\n", floor_tile);
     switch (input) { //입력에 따라서 새로운 좌표 생성
         case 'a': next_x--; break;
         case 'd': next_x++; break;
         case 'w': if (on_ladder) next_y--; break;
-        case 's': if (on_ladder && (player_y + 1 < MAP_HEIGHT) && map[stage][player_y + 1][player_x] != '#') next_y++; break; // 사다리 + 발밑 확인후 가능하면 이동
+        case 's': if (((on_ladder && map[stage][player_y + 1][player_x] != '#') || (floor_tile == 'H')) && (player_y + 1 < MAP_HEIGHT)) next_y++; break; // 사다리 + 발밑 확인후 가능하면 이동
         case ' ': //스페이스바
-            if (!is_jumping && (floor_tile == '#' || on_ladder)) { // 점프 중이 아니고 밑 타일이 땅일때 or 사다리일때
+            if (!is_jumping && (floor_tile == '#' || on_ladder || floor_tile == 'H')) { // 점프 중이 아니고 밑 타일이 땅일때 or 사다리일때
                 is_jumping = 1; //점프중 표현
                 velocity_y = -2; //점프력 2
             }
             break;
     }
 
-    if (next_x >= 0 && next_x < MAP_WIDTH && map[stage][player_y][next_x] != '#') player_x = next_x;
+    if (next_x >= 0 && next_x < MAP_WIDTH && map[stage][player_y][next_x] != '#') player_x = next_x; // 이 코드가 하강시 옆 블록이 비어 있다면 대각선 이 벽이라도 갈 수 있게 만들고 있습니다!
     
-    if (on_ladder && (input == 'w' || input == 's')) { //사다리 이동
+    if ((on_ladder && (input == 'w' || input == 's')) || (floor_tile == 'H' && input == 's')) { //사다리 이동
         if(next_y >= 0 && next_y < MAP_HEIGHT && map[stage][next_y][player_x] != '#') {
             player_y = next_y;
             is_jumping = 0;
             velocity_y = 0;
         }
-    } 
+    }
     else {
         if (is_jumping) { //점프 중 동작
-            next_y = player_y + velocity_y;
+            if (velocity_y < 0) {// 점프력이 0 보다 작으면
+                next_y = player_y - 1;
+
+            }
+            else { //아니면 떨어짐
+                next_y = player_y + 1;
+
+            }
             if(next_y < 0) next_y = 0; //점프했는데 하늘에 머리박음
-            velocity_y++;
+                
 
             if (velocity_y < 0 && next_y < MAP_HEIGHT && map[stage][next_y][player_x] == '#') { //점프했는데 천장에 머리박음
                 velocity_y = 0;
             } else if (next_y < MAP_HEIGHT) {
                 player_y = next_y;
-                velocity_y++; //추가됨
             }
             
             if ((player_y + 1 < MAP_HEIGHT) && map[stage][player_y + 1][player_x] == '#') { // 땅에 착지함
                 is_jumping = 0;
                 velocity_y = 0;
             }
+            velocity_y++; // 점프파워 감소
         } else { //점프중 아님 허공임
             if (floor_tile != '#' && floor_tile != 'H') {
                  if (player_y + 1 < MAP_HEIGHT) player_y++; //맵 안에서 떨어지고 있나요?
@@ -310,8 +322,7 @@ void check_collisions() {
         if (!coins[i].collected && player_x == coins[i].x && player_y == coins[i].y) { // 코인을 먹은적이 있나요? 코인과 같은 위치인가요?
             coins[i].collected = 1;
             score += 20;
-            map[stage][player_y][player_x] = ' '; //일단 전역변수인 map에 현제 플레이어 위치를 공백으로 변경 코인 배열은 건들지 않았기 때문에 초기화에는 반영 안됨
-        }//코인 위치를 공백으로 바꾸는 로직 필요할듯
+        }
     }
 }
 
@@ -338,6 +349,26 @@ int kbhit() {
 //실행 1차 시도 출력중 실패 맵 다운이 덜 받아졌거나 출력중 문제 생긴듯 -> 와 load_file if 조건문 순서 꼬아놨어 출력도 꼬임
 //실행 2차 시도 맵 출력이 1줄씩 띄어짐 -> Q: 출력과정 문제인가? A: 아님 입력받은거 그대로 띄워줌 -> 파일 받을때 논리적 오류 발견 -> 조건문 추가로 해결
 //실행 3차 시도 맵 출력시 맵 바닥에 다음 맵 천장이 붙어서 나옴 -> 일단 실행용으로 조건문 하드코딩시 실행가능하나 구조적 취약점 수정필요(수정됨)
-//실행 4차 시도 하드코딩된 코드 재구축 -> 망할 엔터키로 줄 구분 및 스테이지 구분 혼용이 문제 -> 다시 로직 접근 
+//실행 4차 시도 하드코딩된 코드 재구축 -> 망할 엔터키로 줄 구분 및 스테이지 구분 혼용이 문제 -> 다시 로직 접근 -> 파일 형식 정확히 파악후 접근
+
+
+
+//실행 5차 시도
+//플래이어 상승 하강시 대각선 이동 문제 -> 대각선 경로가 벽인데 왜 이동되지?
+//정말 단순하게 구현된 점프 문제 -> 와 이게 점프? 그냥 위치값을 -2했다 다시 +2할 뿐이다.
+//밑 칸이 사다리인데 내려갈 수 가 없다. -> 해당 로직 수정
+
+//점프를 구현한 방법 점프키 인식했을때 점프력을 부여해서 그만큼 y갚을 한 프래임씩 움직이게 함
+//점프시의 충돌감지 로직이 천장에 머리를 박은 것을 감지하지 못함 ->해결함 로직 오류였음
+//그냥 하강시 대각선 이동 로직이 벽을 감지하지 못함
+//점프시의 좌우 이동이 안됨
 
 //c를 누르면 맵이 초기화 되는 로직을 넣어 놨습니다 테스트할때 사용하고 제출할땐 지우세요
+//파일 형식이 중요할 수 있습니다.
+
+//가끔 키 인식이 씹히는 것 같은 느낌이 듭니다. 노트북 환경에서 작업해서 기기 문제일 수도 있지만 입력 버퍼의 고질적인 문제일 수도 있습니다.
+//지연속도를 줄이면 게임이 굉장히 힘들어집니다.
+
+//와 초기 맵 파일에다 장난을 쳐놨습니다. 일단은 맵 크기가 가로 40 세로 20칸이라고 생각하고 만들겠습니다.
+
+//테스트용 맵 파일이 있습니다.
