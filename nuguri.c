@@ -8,8 +8,8 @@
 
 // 맵 및 게임 요소 정의 (수정된 부분)
 #define MAP_WIDTH 40  // 맵 너비를 40으로 변경
-#define MAP_HEIGHT 40 // map.txt를 확인한 결과 높이 40
-#define MAX_STAGES 2 // map.txt에 스테이지 추가할때 증가시킬것
+#define MAP_HEIGHT 20
+#define MAX_STAGES 3 // map.txt에 스테이지 추가할때 증가시킬것
 #define MAX_ENEMIES 15 // 최대 적 개수 증가
 #define MAX_COINS 30   // 최대 코인 개수 증가
 
@@ -68,13 +68,17 @@ int main() {
     while (!game_over && stage < MAX_STAGES) {
         if (kbhit()) {
             c = getchar();
+            if (c == 'c' ) { //초기화 테스트용 개발 로직
+                init_stage();
+                continue;
+            }
             if (c == 'q') {
                 game_over = 1;
                 continue;
             }
-            if (c == '\x1b') { //ESC를 입력 받았을 때
+            if (c == '\x1b') { //ESC를 입력 받았을 때 (이거 방향키 입력용)
                 getchar(); // '['
-                switch (getchar()) {
+                switch (getchar()) { // 점프 없다?
                     case 'A': c = 'w'; break; // Up
                     case 'B': c = 's'; break; // Down
                     case 'C': c = 'd'; break; // Right
@@ -87,7 +91,7 @@ int main() {
 
         update_game(c); // 플래이어 이동-> 적 이동 -> 충돌감지
         draw_game(); //게임화면 그리기
-        usleep(90000); // 
+        usleep(100000); // 테스트용 1프래임
 
         if (map[stage][player_y][player_x] == 'E') { //출구 도착
             stage++;
@@ -118,7 +122,7 @@ void enable_raw_mode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
-// 맵 파일 로드
+// 맵 파일 로드 파일을 한줄씩 읽어들임
 void load_maps() {
     FILE *file = fopen("map.txt", "r");
     if (!file) {
@@ -128,18 +132,25 @@ void load_maps() {
     int s = 0, r = 0; //s 는 스테이지 숫자 r는 맵 높이용
     char line[MAP_WIDTH + 2]; // 버퍼 크기는 MAP_WIDTH에 따라 자동 조절됨
     while (s < MAX_STAGES && fgets(line, sizeof(line), file)) {
-        if ((line[0] == '\n' || line[0] == '\r') && r > 0) {
-            s++;
-            r = 0;
+
+        if (line[0] == '\n' || line[0] == '\r') { //멥 하나 로드가 끝났나요?
+            printf(" -> 빈 줄, s=%d r=%d 에서 스킵\n", s, r);
+            if(r >= MAP_HEIGHT - 1) {
+                s++;
+                r = 0;
+            }
             continue;
         }
+        printf(" -> map[%d][%d] 에 저장: '%s'\n", s, r, line);
         if (r < MAP_HEIGHT) {
-            line[strcspn(line, "\n\r")] = 0;
+            line[strcspn(line, "\n\r")] = '\0';
             strncpy(map[s][r], line, MAP_WIDTH + 1);
             r++;
         }
     }
+    
     fclose(file);
+    
 }
 
 
@@ -149,16 +160,16 @@ void init_stage() {
     coin_count = 0;
     is_jumping = 0;
     velocity_y = 0;
-    on_ladder = 0; //이 줄은 없었지만 사다리를 타는것도 초기화 해야하지 않을까요?
+    on_ladder = 0; //이 줄은 없었지만 사다리 상태도 초기화 해야하지 않을까요? 혹시모름
 
     for (int y = 0; y < MAP_HEIGHT; y++) {
         for (int x = 0; x < MAP_WIDTH; x++) {
-            char cell = map[stage][y][x]; //y,x =높이, 너비 순임
+            char cell = map[stage][y][x]; //y,x =높이, 너비 순임(입력과 출력 동일)
             if (cell == 'S') {
                 player_x = x;
                 player_y = y;
             } else if (cell == 'X' && enemy_count < MAX_ENEMIES) {
-                enemies[enemy_count] = (Enemy){x, y, (rand() % 2) * 2 - 1};
+                enemies[enemy_count] = (Enemy){x, y, (rand() % 2) * 2 - 1}; //이속 로직 dir 가능 값 -1 or 1 한 칸씩 이동함
                 enemy_count++;
             } else if (cell == 'C' && coin_count < MAX_COINS) {
                 coins[coin_count++] = (Coin){x, y, 0};
@@ -177,7 +188,7 @@ void draw_game() {
     for(int y=0; y < MAP_HEIGHT; y++) {
         for(int x=0; x < MAP_WIDTH; x++) {
             char cell = map[stage][y][x];
-            if (cell == 'S' || cell == 'X' || cell == 'C') {
+            if (cell == 'S' || cell == 'X' || cell == 'C') { //플래이어, 적, 코인은 공백으로 둔다.
                 display_map[y][x] = ' ';
             } else {
                 display_map[y][x] = cell;
@@ -199,6 +210,8 @@ void draw_game() {
 
     for (int y = 0; y < MAP_HEIGHT; y++) {
         for(int x=0; x< MAP_WIDTH; x++){
+            if(display_map[y][x] == '\n')
+                break;
             printf("%c", display_map[y][x]);
         }
         printf("\n");
@@ -225,17 +238,17 @@ void move_player(char input) {
         case 'd': next_x++; break;
         case 'w': if (on_ladder) next_y--; break;
         case 's': if (on_ladder && (player_y + 1 < MAP_HEIGHT) && map[stage][player_y + 1][player_x] != '#') next_y++; break; // 사다리 + 발밑 확인후 가능하면 이동
-        case ' ':
-            if (!is_jumping && (floor_tile == '#' || on_ladder)) {
-                is_jumping = 1;
-                velocity_y = -2; // 점프 높이는 2칸
+        case ' ': //스페이스바
+            if (!is_jumping && (floor_tile == '#' || on_ladder)) { // 점프 중이 아니고 밑 타일이 땅일때 or 사다리일때
+                is_jumping = 1; //점프중 표현
+                velocity_y = -2; //점프력 2
             }
             break;
     }
 
     if (next_x >= 0 && next_x < MAP_WIDTH && map[stage][player_y][next_x] != '#') player_x = next_x;
     
-    if (on_ladder && (input == 'w' || input == 's')) {
+    if (on_ladder && (input == 'w' || input == 's')) { //사다리 이동
         if(next_y >= 0 && next_y < MAP_HEIGHT && map[stage][next_y][player_x] != '#') {
             player_y = next_y;
             is_jumping = 0;
@@ -243,36 +256,38 @@ void move_player(char input) {
         }
     } 
     else {
-        if (is_jumping) {
+        if (is_jumping) { //점프 중 동작
             next_y = player_y + velocity_y;
-            if(next_y < 0) next_y = 0;
+            if(next_y < 0) next_y = 0; //점프했는데 하늘에 머리박음
             velocity_y++;
 
-            if (velocity_y < 0 && next_y < MAP_HEIGHT && map[stage][next_y][player_x] == '#') {
+            if (velocity_y < 0 && next_y < MAP_HEIGHT && map[stage][next_y][player_x] == '#') { //점프했는데 천장에 머리박음
                 velocity_y = 0;
             } else if (next_y < MAP_HEIGHT) {
                 player_y = next_y;
+                velocity_y++; //추가됨
             }
             
-            if ((player_y + 1 < MAP_HEIGHT) && map[stage][player_y + 1][player_x] == '#') {
+            if ((player_y + 1 < MAP_HEIGHT) && map[stage][player_y + 1][player_x] == '#') { // 땅에 착지함
                 is_jumping = 0;
                 velocity_y = 0;
             }
-        } else {
+        } else { //점프중 아님 허공임
             if (floor_tile != '#' && floor_tile != 'H') {
-                 if (player_y + 1 < MAP_HEIGHT) player_y++;
-                 else init_stage();
+                 if (player_y + 1 < MAP_HEIGHT) player_y++; //맵 안에서 떨어지고 있나요?
+                 else init_stage(); // 구멍에 빠져서 맵 바깥으로 나갔을때
             }
         }
     }
     
-    if (player_y >= MAP_HEIGHT) init_stage();
+    if (player_y >= MAP_HEIGHT) init_stage(); //맵 탈출 시 높이 버전
+    if (player_x >= MAP_WIDTH-1) init_stage(); //맵 탈출 시 너비 버전
 }
 
 
 // 적 이동 로직
 void move_enemies() {
-    for (int i = 0; i < enemy_count; i++) {
+    for (int i = 0; i < enemy_count; i++) { //dir은 이동속도 만약 음수를 곱하면 반대방향 이동
         int next_x = enemies[i].x + enemies[i].dir;
         if (next_x < 0 || next_x >= MAP_WIDTH || map[stage][enemies[i].y][next_x] == '#' || (enemies[i].y + 1 < MAP_HEIGHT && map[stage][enemies[i].y + 1][next_x] == ' ')) {
             enemies[i].dir *= -1;
@@ -285,17 +300,18 @@ void move_enemies() {
 // 충돌 감지 로직
 void check_collisions() {
     for (int i = 0; i < enemy_count; i++) {
-        if (player_x == enemies[i].x && player_y == enemies[i].y) {
+        if (player_x == enemies[i].x && player_y == enemies[i].y) { //적 중 하나에 닿았나요?
             score = (score > 50) ? score - 50 : 0;
-            init_stage();
+            init_stage(); //초기화 ----이 코드 위쪽에서 생명력 차감이 일어나야 출력에 반영될듯
             return;
         }
     }
-    for (int i = 0; i < coin_count; i++) {
-        if (!coins[i].collected && player_x == coins[i].x && player_y == coins[i].y) {
+    for (int i = 0; i < coin_count; i++) { //코인중 하나에 닿았나요?
+        if (!coins[i].collected && player_x == coins[i].x && player_y == coins[i].y) { // 코인을 먹은적이 있나요? 코인과 같은 위치인가요?
             coins[i].collected = 1;
             score += 20;
-        }
+            map[stage][player_y][player_x] = ' '; //일단 전역변수인 map에 현제 플레이어 위치를 공백으로 변경 코인 배열은 건들지 않았기 때문에 초기화에는 반영 안됨
+        }//코인 위치를 공백으로 바꾸는 로직 필요할듯
     }
 }
 
@@ -319,3 +335,9 @@ int kbhit() {
     }
     return 0;
 }
+//실행 1차 시도 출력중 실패 맵 다운이 덜 받아졌거나 출력중 문제 생긴듯 -> 와 load_file if 조건문 순서 꼬아놨어 출력도 꼬임
+//실행 2차 시도 맵 출력이 1줄씩 띄어짐 -> Q: 출력과정 문제인가? A: 아님 입력받은거 그대로 띄워줌 -> 파일 받을때 논리적 오류 발견 -> 조건문 추가로 해결
+//실행 3차 시도 맵 출력시 맵 바닥에 다음 맵 천장이 붙어서 나옴 -> 일단 실행용으로 조건문 하드코딩시 실행가능하나 구조적 취약점 수정필요(수정됨)
+//실행 4차 시도 하드코딩된 코드 재구축 -> 망할 엔터키로 줄 구분 및 스테이지 구분 혼용이 문제 -> 다시 로직 접근 
+
+//c를 누르면 맵이 초기화 되는 로직을 넣어 놨습니다 테스트할때 사용하고 제출할땐 지우세요
