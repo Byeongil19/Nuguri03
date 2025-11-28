@@ -121,12 +121,42 @@ int init_sdl_mixer(void); //SDL_mixer 초기화
 int play_bgm(int); //-1을 넣으면 무한 루프, 브금 함수
 int play_sfx(void); //효과음 함수
 void close_sdl_mixer(void); //오디오 종료 함수
+void title_screen(void); // 시작 타이틀 함수
+void ending_screen(int is_clear); // 엔딩 화면 함수
+void print_file(const char* filename); // 텍스트 파일 출력함수
+//화면 초기화
+#ifdef _WIN32
+    void clrscr() {
+        system("cls");
+    }
 
+    void delay(int ms) {
+        Sleep(ms); 
+    }
+
+#else
+    void clrscr() {
+        printf("\x1b[2J\x1b[H");
+    }
+#endif
+// 시작, 엔딩 텍스트 출력 함수
+void print_file(const char* filename){
+    clrscr();
+    FILE *file = fopen(filename, "r");
+    if(!file){
+        printf("%s 파일을 열 수 없습니다.\n", filename);
+        return;
+    }
+    char line[200];
+    while (fgets(line, sizeof(line), file)) {
+        printf("%s", line);
+    }
+    fclose(file);
+}
 //생명력 카운트
 void heart_discount(void){
     if (heart <= 0) {
-        printf("Game Over!");
-        printf("\n모든 생명을 소모하셨습니다.\n");
+        print_file("gameover.txt");
         disable_raw_mode();
         exit(0);
     }
@@ -209,6 +239,7 @@ void close_sdl_mixer(void) {
 int main(void) {
     srand(time(NULL));
     enable_raw_mode();
+    title_screen();
     load_maps();
     if (!init_sdl_mixer()) {
         printf("SDL_mixer 초기화 실패!\n");
@@ -265,6 +296,17 @@ int main(void) {
     return 0;
 }
 
+// 시작 화면 출력
+void title_screen(void){
+    print_file("title.txt");
+    printf("\n 아무 키나 누르면 시작합니다. \n");
+
+    while(1){
+        if(kbhit()){
+            return;
+        }
+    }
+}
 // 맵 파일 로드
 void load_maps(void) {
     FILE *file = fopen("map.txt", "r");
@@ -315,7 +357,7 @@ void init_stage(void) {
 
 // 게임 화면 그리기
 void draw_game(void) {
-    printf("\x1b[2J\x1b[H");
+    clrscr();
     printf("Stage: %d | Score: %d | Heart: %d \n", stage + 1, score, heart);
     printf("조작: ← → (이동), ↑ ↓ (사다리), Space (점프), q (종료)\n");
 
