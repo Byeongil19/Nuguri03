@@ -112,7 +112,7 @@ void init_stage(void); // 현재 스테이지 초기화
 void draw_game(void); // 게임 화면 그리기
 void update_game(char input); // 게임 상태 업데이트
 void move_player(char input); // 플레이어 이동 로직
-void move_enemies(); // 적 이동 로직
+void move_enemies(void); // 적 이동 로직
 void check_collisions(void); // 충돌 감지 로직
 void heart_discount(void); // heart가 0 일때 종료 함수
 int kbhit(void);
@@ -207,7 +207,7 @@ void close_sdl_mixer(void) {
 
 
 int main(void) {
-    srand(time(NULL));
+    srand((int)time(NULL));
     enable_raw_mode();
     load_maps();
     init_stage();
