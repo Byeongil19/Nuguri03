@@ -444,7 +444,7 @@ void move_player(char input) {
             }
             break;
     }
-    if (input == 'a' || input == 'd')
+    if ((input == 'a' || input == 'd') && !is_jumping)
         last_input = input;
     else if (input == '\0' && !is_jumping)
         last_input = '\0';
