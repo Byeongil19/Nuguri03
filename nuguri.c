@@ -98,6 +98,7 @@ int heart = 3; //생명력 3으로 초기화
 int is_jumping = 0;
 int velocity_y = 0; //속도
 int on_ladder = 0;
+char last_input = '\0'; //전 키 기억용
 
 // 게임 객체
 Enemy enemies[MAX_ENEMIES];
@@ -427,8 +428,8 @@ void move_player(char input) {
     char current_tile = map[stage][player_y][player_x]; //지금 위치(추측)
 
     on_ladder = (current_tile == 'H');
-    printf("[before] key=%c, py=%d ny=%d floor='%c' on_ladder=%d jumpower'%d' below='%c'\n",
-       input , player_y, next_y, floor_tile, on_ladder, velocity_y,
+    printf("[before] key=%c, last key=%c, py=%d ny=%d floor='%c' on_ladder=%d jumpower'%d' below='%c'\n",
+       input, last_input, player_y, next_y, floor_tile, on_ladder, velocity_y,
        map[stage][player_y + 1][player_x]); // 입력 확인용
     printf("%c\n", floor_tile);
     switch (input) { //입력에 따라서 새로운 좌표 생성
@@ -443,6 +444,10 @@ void move_player(char input) {
             }
             break;
     }
+    if (input == 'a' || input == 'd')
+        last_input = input;
+    else if (input == '\0' && !is_jumping)
+        last_input = '\0';
     if ((on_ladder && (input == 'w' || input == 's')) || (floor_tile == 'H' && input == 's')) { //사다리 이동
         if(next_y >= 0 && next_y < MAP_HEIGHT && map[stage][next_y][player_x] != '#') {
             player_y = next_y;
@@ -460,6 +465,13 @@ void move_player(char input) {
                 next_y = player_y + 1;
 
             }
+            if(input == ' ' || input == '\0') { // 자연스러운 점프 로직 -> 왜 앞으로 가다가 점프할 때는 제자리 점프만 하는가? (제가 테스트 할 때는 문제가 없었습니다!)
+                switch (last_input) {
+                    case 'a': next_x--; break;
+                    case 'd': next_x++; break;
+                    break;
+                }
+            }
             if(next_y < 0) next_y = 0; //점프했는데 하늘에 머리박음
                 
 
@@ -472,6 +484,10 @@ void move_player(char input) {
             if ((player_y + 1 < MAP_HEIGHT) && (map[stage][player_y + 1][player_x] == '#'||( !on_ladder && map[stage][player_y + 1][player_x] == 'H'))) { // 땅에 착지함
                 is_jumping = 0;
                 velocity_y = 0;
+                if(map[stage][player_y + 1][next_x] == ' '){ //점프 하강 대각선 시 예외처리
+                    is_jumping = 1;
+                    velocity_y = -1;
+                }
             }
             velocity_y++; // 점프파워 감소
         } else { //점프중 아님 허공임
@@ -516,26 +532,6 @@ void check_collisions(void) {
             play_sfx(); // 코인 획득시 효과음
         }
     }
-}
-// 비동기 키보드 입력 확인
-int kbhit() {
-    struct termios oldt, newt;
-    int ch;
-    int oldf;
-    tcgetattr(STDIN_FILENO, &oldt);
-    newt = oldt;
-    newt.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-    oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-    fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
-    ch = getchar();
-    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-    fcntl(STDIN_FILENO, F_SETFL, oldf);
-    if(ch != EOF) {
-        ungetc(ch, stdin);
-        return 1;
-    }
-    return 0;
 }
 //맵 실행 및 출력 문제들
 //실행 1차 시도 출력중 실패 맵 다운이 덜 받아졌거나 출력중 문제 생긴듯 -> 와 load_file if 조건문 순서 꼬아놨어 출력도 꼬임
