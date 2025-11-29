@@ -472,6 +472,8 @@ void move_player(char input) {
                     break;
                 }
             }
+            else
+                last_input = '\0';
             if(next_y < 0) next_y = 0; //점프했는데 하늘에 머리박음
                 
 
