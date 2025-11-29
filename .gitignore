@@ -1,0 +1,14 @@
+# --- Xcode User Data (개인 설정) ---
+# Git에 절대로 올라가면 안 되는 파일들입니다.
+xcuserdata/
+# Xcode 빌드 및 캐시 데이터
+DerivedData/
+
+# --- macOS Files ---
+.DS_Store
+
+# --- 실행 파일 및 오브젝트 파일 무시 ---
+# 최종 빌드된 실행 파일 (컴파일로 다시 만들 수 있음)
+/rpg
+/audio_test
+*.o
