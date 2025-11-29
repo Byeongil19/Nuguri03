@@ -517,26 +517,7 @@ void check_collisions(void) {
         }
     }
 }
-// 비동기 키보드 입력 확인
-int kbhit() {
-    struct termios oldt, newt;
-    int ch;
-    int oldf;
-    tcgetattr(STDIN_FILENO, &oldt);
-    newt = oldt;
-    newt.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-    oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-    fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
-    ch = getchar();
-    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-    fcntl(STDIN_FILENO, F_SETFL, oldf);
-    if(ch != EOF) {
-        ungetc(ch, stdin);
-        return 1;
-    }
-    return 0;
-}
+
 //맵 실행 및 출력 문제들
 //실행 1차 시도 출력중 실패 맵 다운이 덜 받아졌거나 출력중 문제 생긴듯 -> 와 load_file if 조건문 순서 꼬아놨어 출력도 꼬임
 //실행 2차 시도 맵 출력이 1줄씩 띄어짐 -> Q: 출력과정 문제인가? A: 아님 입력받은거 그대로 띄워줌 -> 파일 받을때 논리적 오류 발견 -> 조건문 추가로 해결
