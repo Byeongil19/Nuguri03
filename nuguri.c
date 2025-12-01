@@ -13,14 +13,10 @@
     #include <fcntl.h>
 #endif
 
-// SDL2 라이브러리는 모든 플랫폼에서 동일하게 포함
-#include "SDL2/SDL.h"
-#include "SDL2/SDL_mixer.h"
-
 // 맵 및 게임 요소 정의 (수정된 부분)
 #define MAP_WIDTH 40  // 맵 너비를 40으로 변경
 #define MAP_HEIGHT 20
-#define MAX_STAGES 3 // map.txt에 스테이지 추가할때 증가시킬것
+#define MAX_STAGES 5 // map.txt에 스테이지 추가할때 증가시킬것
 #define MAX_ENEMIES 15 // 최대 적 개수 증가
 #define MAX_COINS 30   // 최대 코인 개수 증가
 
@@ -73,8 +69,6 @@
     }
 #endif // _WIN32
 
-static Mix_Music *gMusic = NULL; //BGM 저장용 포인터
-
 // 구조체 정의
 typedef struct {
     int x, y;
@@ -126,6 +120,7 @@ void close_sdl_mixer(void); //오디오 종료 함수
 void title_screen(void); // 시작 타이틀 함수
 void ending_screen(int is_clear); // 엔딩 화면 함수
 void print_file(const char* filename); // 텍스트 파일 출력함수
+
 //화면 초기화
 #ifdef _WIN32
     void clrscr() {
@@ -139,6 +134,10 @@ void print_file(const char* filename); // 텍스트 파일 출력함수
 #else
     void clrscr() {
         printf("\x1b[2J\x1b[H");
+    }
+
+    void delay(int ms){
+        usleep(ms * 1000);
     }
 #endif
 // 시작, 엔딩 텍스트 출력 함수
@@ -164,93 +163,15 @@ void heart_discount(void){
     }
 }
 
-// 효과음 메모리 해제 콜백 함수
-void sfx_finished_callback(int channel) {
-    Mix_Chunk *chunk = Mix_GetChunk(channel);
-    if (chunk != NULL) {
-        Mix_FreeChunk(chunk);
-    }
-}
-
-// SDL_mixer 초기화
-int init_sdl_mixer(void) {
-    //오류 처리
-    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
-        return 0;
-    }
-
-    int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
-    if (Mix_Init(flags) != flags) {
-        return 0;
-    }
-
-    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 4096) < 0) {
-        return 0;
-    }
-    //실행
-    Mix_ChannelFinished(sfx_finished_callback);
-    Mix_VolumeMusic(MIX_MAX_VOLUME);
-    Mix_Volume(-1, MIX_MAX_VOLUME);
-    return 1;
-}
-
-// BGM 재생 함수 (무한 루프)
-int play_bgm(int loop) {
-    const char* BGM_PATH = "ponpoko_bgm.mp3";
-    
-    if (gMusic != NULL) { Mix_HaltMusic(); Mix_FreeMusic(gMusic); gMusic = NULL; }
-
-    gMusic = Mix_LoadMUS(BGM_PATH);
-    if (gMusic == NULL) {
-        return 0;
-    }
-
-    if (Mix_PlayMusic(gMusic, loop) == -1) {
-        return 0;
-    }
-
-    return 1;
-}
-
-// SFX 재생 함수 (호출시)
-int play_sfx(void) {
-    const char* SFX_PATH = "select_audio.wav";
-    Mix_Chunk *current_sfx = Mix_LoadWAV(SFX_PATH);
-    if (current_sfx == NULL) {
-        return 0;
-    }
-
-    int channel = Mix_PlayChannel(-1, current_sfx, 0);
-
-    if (channel == -1) {
-        Mix_FreeChunk(current_sfx);
-        return 0;
-    }
-    return 1;
-}
-
-// 오디오 종료 함수
-void close_sdl_mixer(void) {
-    if (gMusic != NULL) { Mix_FreeMusic(gMusic); gMusic = NULL; }
-    Mix_CloseAudio();
-    Mix_Quit();
-    SDL_Quit();
-}
-
-
 int main(void) {
+    #ifdef _WIN32 //윈도우용 화면 출력 깨짐 방지 콘솔 UTF-8 고정 화면출력
+        system("chcp 65001> nul");
+        printf("\x1b[?25l"); // 윈도우 환경에서 화면 깜빡임으로 인한 커서 숨기기
+    #endif
     srand(time(NULL));
     enable_raw_mode();
     title_screen();
     load_maps();
-    if (!init_sdl_mixer()) {
-        printf("SDL_mixer 초기화 실패!\n");
-    } 
-    else { // BGM 실행
-        if (!play_bgm(-1)) {
-            printf("BGM 로드 실패!\n");
-        }
-    }
     init_stage();
 
     char c = '\0'; // 초기값 Null
@@ -282,7 +203,7 @@ int main(void) {
 
         update_game(c); // 플래이어 이동-> 적 이동 -> 충돌감지
         draw_game(); //게임화면 그리기
-        usleep(100000); // 테스트용 느린 프래임
+        delay(80);
 
         if (map[stage][player_y][player_x] == 'E') { //출구 도착
             stage++;
@@ -292,12 +213,14 @@ int main(void) {
             } else {
                 game_over = 1;
                 printf("\x1b[2J\x1b[H");
-                printf("축하합니다! 모든 스테이지를 클리어했습니다!\n");
-                printf("최종 점수: %d\n", score);
+                print_file("clear.txt");
+                printf("\n최종 점수: %d\n", score);
             }
         }
     }
-    close_sdl_mixer(); // 오디오 종료
+    #ifdef _WIN32
+    printf("\x1b[?25h");    // Windows에서만 보이기
+    #endif
     disable_raw_mode();//터미널 row 비활성화
     return 0;
 }
@@ -333,7 +256,6 @@ void load_maps() {
             }
             continue;
         }
-        printf(" -> map[%d][%d] 에 저장: '%s'\n", s, r, line);
         if (r < MAP_HEIGHT) {
             line[strcspn(line, "\n\r")] = '\0';
             strncpy(map[s][r], line, MAP_WIDTH + 1);
@@ -374,9 +296,20 @@ void init_stage() {
     }
 }
 
+void gotoxy(int x, int y) {
+    printf("\033[%d;%dH", y, x);
+}
+
 // 게임 화면 그리기
 void draw_game(void) {
+    #ifdef _WIN32
+    // Windows: 화면 지우지 말고 커서만 맨 위로
+     gotoxy(1, 1); 
+    #else
+    // Linux/macOS: 기존 clrscr() 사용해도 깜빡임 거의 없음
     clrscr();
+    #endif
+    
     printf("Stage: %d | Score: %d | Heart: %d \n", stage + 1, score, heart);
     printf("조작: ← → (이동), ↑ ↓ (사다리), Space (점프), q (종료)\n");
 
@@ -428,10 +361,6 @@ void move_player(char input) {
     char current_tile = map[stage][player_y][player_x]; //지금 위치(추측)
 
     on_ladder = (current_tile == 'H');
-    printf("[before] key=%c, last key=%c, py=%d ny=%d floor='%c' on_ladder=%d jumpower'%d' below='%c'\n",
-       input, last_input, player_y, next_y, floor_tile, on_ladder, velocity_y,
-       map[stage][player_y + 1][player_x]); // 입력 확인용
-    printf("%c\n", floor_tile);
     switch (input) { //입력에 따라서 새로운 좌표 생성
         case 'a': next_x--; break;
         case 'd': next_x++; break;
@@ -486,7 +415,7 @@ void move_player(char input) {
             if ((player_y + 1 < MAP_HEIGHT) && (map[stage][player_y + 1][player_x] == '#'||( !on_ladder && map[stage][player_y + 1][player_x] == 'H'))) { // 땅에 착지함
                 is_jumping = 0;
                 velocity_y = 0;
-                if(map[stage][player_y + 1][next_x] == ' '){ //점프 하강 대각선 시 예외처리
+                if(map[stage][player_y + 1][next_x] != '#' && map[stage][player_y + 1][next_x] != 'H'){ //점프 하강 대각선 시 예외처리
                     is_jumping = 1;
                     velocity_y = -1;
                 }
@@ -531,10 +460,10 @@ void check_collisions(void) {
         if (!coins[i].collected && player_x == coins[i].x && player_y == coins[i].y) { // 코인을 먹은적이 있나요? 코인과 같은 위치인가요?
             coins[i].collected = 1;
             score += 20;
-            play_sfx(); // 코인 획득시 효과음
         }
     }
 }
+
 //맵 실행 및 출력 문제들
 //실행 1차 시도 출력중 실패 맵 다운이 덜 받아졌거나 출력중 문제 생긴듯 -> 와 load_file if 조건문 순서 꼬아놨어 출력도 꼬임
 //실행 2차 시도 맵 출력이 1줄씩 띄어짐 -> Q: 출력과정 문제인가? A: 아님 입력받은거 그대로 띄워줌 -> 파일 받을때 논리적 오류 발견 -> 조건문 추가로 해결
