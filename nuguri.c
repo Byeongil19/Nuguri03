@@ -13,10 +13,6 @@
     #include <fcntl.h>
 #endif
 
-// SDL2 라이브러리는 모든 플랫폼에서 동일하게 포함
-#include "SDL2/SDL.h"
-#include "SDL2/SDL_mixer.h"
-
 // 맵 및 게임 요소 정의 (수정된 부분)
 #define MAP_WIDTH 40  // 맵 너비를 40으로 변경
 #define MAP_HEIGHT 20
@@ -72,8 +68,6 @@
         return 0;
     }
 #endif // _WIN32
-
-static Mix_Music *gMusic = NULL; //BGM 저장용 포인터
 
 // 구조체 정의
 typedef struct {
@@ -164,93 +158,11 @@ void heart_discount(void){
     }
 }
 
-// 효과음 메모리 해제 콜백 함수
-void sfx_finished_callback(int channel) {
-    Mix_Chunk *chunk = Mix_GetChunk(channel);
-    if (chunk != NULL) {
-        Mix_FreeChunk(chunk);
-    }
-}
-
-// SDL_mixer 초기화
-int init_sdl_mixer(void) {
-    //오류 처리
-    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
-        return 0;
-    }
-
-    int flags = MIX_INIT_MP3 | MIX_INIT_OGG;
-    if (Mix_Init(flags) != flags) {
-        return 0;
-    }
-
-    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 4096) < 0) {
-        return 0;
-    }
-    //실행
-    Mix_ChannelFinished(sfx_finished_callback);
-    Mix_VolumeMusic(MIX_MAX_VOLUME);
-    Mix_Volume(-1, MIX_MAX_VOLUME);
-    return 1;
-}
-
-// BGM 재생 함수 (무한 루프)
-int play_bgm(int loop) {
-    const char* BGM_PATH = "ponpoko_bgm.mp3";
-    
-    if (gMusic != NULL) { Mix_HaltMusic(); Mix_FreeMusic(gMusic); gMusic = NULL; }
-
-    gMusic = Mix_LoadMUS(BGM_PATH);
-    if (gMusic == NULL) {
-        return 0;
-    }
-
-    if (Mix_PlayMusic(gMusic, loop) == -1) {
-        return 0;
-    }
-
-    return 1;
-}
-
-// SFX 재생 함수 (호출시)
-int play_sfx(void) {
-    const char* SFX_PATH = "select_audio.wav";
-    Mix_Chunk *current_sfx = Mix_LoadWAV(SFX_PATH);
-    if (current_sfx == NULL) {
-        return 0;
-    }
-
-    int channel = Mix_PlayChannel(-1, current_sfx, 0);
-
-    if (channel == -1) {
-        Mix_FreeChunk(current_sfx);
-        return 0;
-    }
-    return 1;
-}
-
-// 오디오 종료 함수
-void close_sdl_mixer(void) {
-    if (gMusic != NULL) { Mix_FreeMusic(gMusic); gMusic = NULL; }
-    Mix_CloseAudio();
-    Mix_Quit();
-    SDL_Quit();
-}
-
-
 int main(void) {
     srand(time(NULL));
     enable_raw_mode();
     title_screen();
     load_maps();
-    if (!init_sdl_mixer()) {
-        printf("SDL_mixer 초기화 실패!\n");
-    } 
-    else { // BGM 실행
-        if (!play_bgm(-1)) {
-            printf("BGM 로드 실패!\n");
-        }
-    }
     init_stage();
 
     char c = '\0'; // 초기값 Null
@@ -292,12 +204,11 @@ int main(void) {
             } else {
                 game_over = 1;
                 printf("\x1b[2J\x1b[H");
-                printf("축하합니다! 모든 스테이지를 클리어했습니다!\n");
-                printf("최종 점수: %d\n", score);
+                print_file("clear.txt");
+                printf("\n최종 점수: %d\n", score);
             }
         }
     }
-    close_sdl_mixer(); // 오디오 종료
     disable_raw_mode();//터미널 row 비활성화
     return 0;
 }
@@ -529,10 +440,10 @@ void check_collisions(void) {
         if (!coins[i].collected && player_x == coins[i].x && player_y == coins[i].y) { // 코인을 먹은적이 있나요? 코인과 같은 위치인가요?
             coins[i].collected = 1;
             score += 20;
-            play_sfx(); // 코인 획득시 효과음
         }
     }
 }
+
 //맵 실행 및 출력 문제들
 //실행 1차 시도 출력중 실패 맵 다운이 덜 받아졌거나 출력중 문제 생긴듯 -> 와 load_file if 조건문 순서 꼬아놨어 출력도 꼬임
 //실행 2차 시도 맵 출력이 1줄씩 띄어짐 -> Q: 출력과정 문제인가? A: 아님 입력받은거 그대로 띄워줌 -> 파일 받을때 논리적 오류 발견 -> 조건문 추가로 해결
