@@ -120,6 +120,7 @@ void close_sdl_mixer(void); //오디오 종료 함수
 void title_screen(void); // 시작 타이틀 함수
 void ending_screen(int is_clear); // 엔딩 화면 함수
 void print_file(const char* filename); // 텍스트 파일 출력함수
+
 //화면 초기화
 #ifdef _WIN32
     void clrscr() {
@@ -133,6 +134,10 @@ void print_file(const char* filename); // 텍스트 파일 출력함수
 #else
     void clrscr() {
         printf("\x1b[2J\x1b[H");
+    }
+
+    void delay(int ms){
+        usleep(ms * 1000);
     }
 #endif
 // 시작, 엔딩 텍스트 출력 함수
@@ -159,6 +164,10 @@ void heart_discount(void){
 }
 
 int main(void) {
+    #ifdef _WIN32 //윈도우용 화면 출력 깨짐 방지 콘솔 UTF-8 고정 화면출력
+        system("chcp 65001> nul");
+        printf("\x1b[?25l"); // 윈도우 환경에서 화면 깜빡임으로 인한 커서 숨기기
+    #endif
     srand(time(NULL));
     enable_raw_mode();
     title_screen();
@@ -194,7 +203,7 @@ int main(void) {
 
         update_game(c); // 플래이어 이동-> 적 이동 -> 충돌감지
         draw_game(); //게임화면 그리기
-        usleep(100000); // 테스트용 느린 프래임
+        delay(80);
 
         if (map[stage][player_y][player_x] == 'E') { //출구 도착
             stage++;
@@ -209,6 +218,9 @@ int main(void) {
             }
         }
     }
+    #ifdef _WIN32
+    printf("\x1b[?25h");    // Windows에서만 보이기
+    #endif
     disable_raw_mode();//터미널 row 비활성화
     return 0;
 }
@@ -244,7 +256,6 @@ void load_maps() {
             }
             continue;
         }
-        printf(" -> map[%d][%d] 에 저장: '%s'\n", s, r, line);
         if (r < MAP_HEIGHT) {
             line[strcspn(line, "\n\r")] = '\0';
             strncpy(map[s][r], line, MAP_WIDTH + 1);
@@ -285,9 +296,20 @@ void init_stage() {
     }
 }
 
+void gotoxy(int x, int y) {
+    printf("\033[%d;%dH", y, x);
+}
+
 // 게임 화면 그리기
 void draw_game(void) {
+    #ifdef _WIN32
+    // Windows: 화면 지우지 말고 커서만 맨 위로
+     gotoxy(1, 1); 
+    #else
+    // Linux/macOS: 기존 clrscr() 사용해도 깜빡임 거의 없음
     clrscr();
+    #endif
+    
     printf("Stage: %d | Score: %d | Heart: %d \n", stage + 1, score, heart);
     printf("조작: ← → (이동), ↑ ↓ (사다리), Space (점프), q (종료)\n");
 
@@ -339,10 +361,6 @@ void move_player(char input) {
     char current_tile = map[stage][player_y][player_x]; //지금 위치(추측)
 
     on_ladder = (current_tile == 'H');
-    printf("[before] key=%c, last key=%c, py=%d ny=%d floor='%c' on_ladder=%d jumpower'%d' below='%c'\n",
-       input, last_input, player_y, next_y, floor_tile, on_ladder, velocity_y,
-       map[stage][player_y + 1][player_x]); // 입력 확인용
-    printf("%c\n", floor_tile);
     switch (input) { //입력에 따라서 새로운 좌표 생성
         case 'a': next_x--; break;
         case 'd': next_x++; break;
