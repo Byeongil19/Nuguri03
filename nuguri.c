@@ -163,6 +163,16 @@ void heart_discount(void){
     }
 }
 
+//기본적인 시스템 비프음
+void beep_sound(void){
+    #ifdef _WIN32
+        beep(750, 120);
+    #else
+        printf("\a");
+        fflush(stdout);
+    #endif
+}
+
 int main(void) {
     #ifdef _WIN32 //윈도우용 화면 출력 깨짐 방지 콘솔 UTF-8 고정 화면출력
         system("chcp 65001> nul");
