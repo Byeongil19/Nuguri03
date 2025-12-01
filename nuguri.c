@@ -16,7 +16,7 @@
 // 맵 및 게임 요소 정의 (수정된 부분)
 #define MAP_WIDTH 40  // 맵 너비를 40으로 변경
 #define MAP_HEIGHT 20
-#define MAX_STAGES 3 // map.txt에 스테이지 추가할때 증가시킬것
+#define MAX_STAGES 5 // map.txt에 스테이지 추가할때 증가시킬것
 #define MAX_ENEMIES 15 // 최대 적 개수 증가
 #define MAX_COINS 30   // 최대 코인 개수 증가
 
@@ -415,7 +415,7 @@ void move_player(char input) {
             if ((player_y + 1 < MAP_HEIGHT) && (map[stage][player_y + 1][player_x] == '#'||( !on_ladder && map[stage][player_y + 1][player_x] == 'H'))) { // 땅에 착지함
                 is_jumping = 0;
                 velocity_y = 0;
-                if(map[stage][player_y + 1][next_x] == ' '){ //점프 하강 대각선 시 예외처리
+                if(map[stage][player_y + 1][next_x] != '#' && map[stage][player_y + 1][next_x] != 'H'){ //점프 하강 대각선 시 예외처리
                     is_jumping = 1;
                     velocity_y = -1;
                 }
