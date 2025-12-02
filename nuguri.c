@@ -55,6 +55,7 @@ void move_player(char input);
 void move_enemies();
 void check_collisions();
 int kbhit();
+void beep_sound();
 
 int main() {
     srand(time(NULL));
@@ -317,4 +318,14 @@ int kbhit() {
         return 1;
     }
     return 0;
+}
+
+//기본적인 시스템 비프음
+void beep_sound(void){
+    #ifdef _WIN32
+        beep(750, 120);
+    #else
+        printf("\a");
+        fflush(stdout);
+    #endif
 }
