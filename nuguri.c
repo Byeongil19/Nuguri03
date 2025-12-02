@@ -101,21 +101,6 @@ Coin coins[MAX_COINS];
 int coin_count = 0;
 
 // 함수 선언
-
-void disable_raw_mode();
-void enable_raw_mode();
-void load_maps();
-void init_stage();
-void draw_game();
-void update_game(char input);
-void move_player(char input);
-void move_enemies();
-void check_collisions();
-int kbhit();
-void beep_sound();
-
-int main() {
-
 void disable_raw_mode(void); // // 터미널 Raw 모드 활성화/비활성화
 void enable_raw_mode(void); // 터미널 Raw 모드 활성화/비활성화
 void load_maps(void); // 맵 파일 로드
@@ -126,15 +111,10 @@ void move_player(char input); // 플레이어 이동 로직
 void move_enemies(); // 적 이동 로직
 void check_collisions(void); // 충돌 감지 로직
 void heart_discount(void); // heart가 0 일때 종료 함수
-int kbhit(void);
-void sfx_finished_callback(int); //효과음 메모리 해제 콜백
-int init_sdl_mixer(void); //SDL_mixer 초기화
-int play_bgm(int); //-1을 넣으면 무한 루프, 브금 함수
-int play_sfx(void); //효과음 함수
-void close_sdl_mixer(void); //오디오 종료 함수
 void title_screen(void); // 시작 타이틀 함수
 void ending_screen(int is_clear); // 엔딩 화면 함수
 void print_file(const char* filename); // 텍스트 파일 출력함수
+void beep_sound();
 
 //화면 초기화
 #ifdef _WIN32
@@ -183,7 +163,6 @@ int main(void) {
         system("chcp 65001> nul");
         printf("\x1b[?25l"); // 윈도우 환경에서 화면 깜빡임으로 인한 커서 숨기기
     #endif
-
     srand(time(NULL));
     enable_raw_mode();
     title_screen();
@@ -227,6 +206,7 @@ int main(void) {
             if (stage < MAX_STAGES) {
                 init_stage();
             } else {
+                beep_sound();
                 game_over = 1;
                 printf("\x1b[2J\x1b[H");
                 print_file("clear.txt");
@@ -470,6 +450,7 @@ void move_enemies() {
 void check_collisions(void) {
     for (int i = 0; i < enemy_count; i++) {
         if (player_x == enemies[i].x && player_y == enemies[i].y) { //적 중 하나에 닿았나요
+            beep_sound();
             heart--; // 충돌시 생명 감소
             heart_discount(); //heart 수 계산하고 종료
             return;
@@ -479,36 +460,15 @@ void check_collisions(void) {
         if (!coins[i].collected && player_x == coins[i].x && player_y == coins[i].y) { // 코인을 먹은적이 있나요? 코인과 같은 위치인가요?
             coins[i].collected = 1;
             score += 20;
+            beep_sound();
         }
     }
-}
-
-
-// 비동기 키보드 입력 확인
-int kbhit() {
-    struct termios oldt, newt;
-    int ch;
-    int oldf;
-    tcgetattr(STDIN_FILENO, &oldt);
-    newt = oldt;
-    newt.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-    oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-    fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
-    ch = getchar();
-    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-    fcntl(STDIN_FILENO, F_SETFL, oldf);
-    if(ch != EOF) {
-        ungetc(ch, stdin);
-        return 1;
-    }
-    return 0;
 }
 
 //기본적인 시스템 비프음
 void beep_sound(void){
     #ifdef _WIN32
-        beep(750, 120);
+        Beep(750, 120);
     #else
         printf("\a");
         fflush(stdout);
