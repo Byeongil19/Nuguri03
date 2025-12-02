@@ -14,9 +14,23 @@
 #endif
 
 // 맵 및 게임 요소 정의 (수정된 부분)
-#define MAP_WIDTH 40  // 맵 너비를 40으로 변경
-#define MAP_HEIGHT 20
-#define MAX_STAGES 5 // map.txt에 스테이지 추가할때 증가시킬것
+// #define MAP_WIDTH 40  // 맵 너비를 40으로 변경
+// #define MAP_HEIGHT 20
+int MAP_WIDTH = 0;
+int MAP_HEIGHT = 0;
+int current_stage = 0;
+int STAGE_COUNT = 5; // 일단 5로 해뒀습니다 제출 시 수정
+
+char *map_files[5]={
+    "map1.txt",
+    "map2.txt",
+    "map3.txt",
+    "map4.txt",
+    "map5.txt"
+};
+
+
+//#define MAX_STAGES 5 // map.txt에 스테이지 추가할때 증가시킬것
 #define MAX_ENEMIES 15 // 최대 적 개수 증가
 #define MAX_COINS 30   // 최대 코인 개수 증가
 
@@ -82,7 +96,9 @@ typedef struct {
 } Coin;
 
 // 전역 변수
-char map[MAX_STAGES][MAP_HEIGHT][MAP_WIDTH + 1]; // 왜 MAP_WIDTH는 +1을 하나요? 엔터로 칸을 구분하기 때문임
+// char map[MAX_STAGES][MAP_HEIGHT][MAP_WIDTH + 1]; // 왜 MAP_WIDTH는 +1을 하나요? 엔터로 칸을 구분하기 때문임
+
+char **map = NULL;
 int player_x, player_y; //플래이어 2차원 위치
 int stage = 0;
 int score = 0;
@@ -111,11 +127,22 @@ void move_player(char input); // 플레이어 이동 로직
 void move_enemies(); // 적 이동 로직
 void check_collisions(void); // 충돌 감지 로직
 void heart_discount(void); // heart가 0 일때 종료 함수
+int kbhit(void);
+void sfx_finished_callback(int); //효과음 메모리 해제 콜백
+int init_sdl_mixer(void); //SDL_mixer 초기화
+int play_bgm(int); //-1을 넣으면 무한 루프, 브금 함수
+int play_sfx(void); //효과음 함수
+void close_sdl_mixer(void); //오디오 종료 함수
 void title_screen(void); // 시작 타이틀 함수
 void ending_screen(int is_clear); // 엔딩 화면 함수
 void print_file(const char* filename); // 텍스트 파일 출력함수
-void beep_sound();
 
+char **load_map(const char *filename){ // 파일 오픈, 크기 계산 
+    char **m = malloc(sizeof(char*)*MAP_HEIGHT);
+    for (int i=0;i<MAP_HEIGHT; i++){
+        m[i] = malloc(MAP_WIDTH+1);
+    }
+}
 //화면 초기화
 #ifdef _WIN32
     void clrscr() {
@@ -232,7 +259,6 @@ int main(void) {
             if (stage < MAX_STAGES) {
                 init_stage();
             } else {
-                beep_sound();
                 game_over = 1;
                 printf("\x1b[2J\x1b[H");
                 print_file("clear.txt");
@@ -381,7 +407,7 @@ void move_player(char input) {
     int next_x = player_x, next_y = player_y; //기존 위치 저장
     char floor_tile = (player_y + 1 < MAP_HEIGHT) ? map[stage][player_y + 1][player_x] : '#'; //발밑 블럭 확인용 맵 데이터에서 읽을 수 있는 범위인지 확인 -> 아니라면 '#'으로 취급
     char current_tile = map[stage][player_y][player_x]; //지금 위치(추측)
-    printf("%d %d %d %d %c %c\n", player_x, next_x, player_y, next_y, floor_tile, current_tile);
+
     on_ladder = (current_tile == 'H');
     switch (input) { //입력에 따라서 새로운 좌표 생성
         case 'a': next_x--; break;
@@ -395,7 +421,6 @@ void move_player(char input) {
             }
             break;
     }
-    
     if ((input == 'a' || input == 'd') && !is_jumping)
         last_input = input;
     else if (input == '\0' && !is_jumping)
@@ -413,8 +438,6 @@ void move_player(char input) {
                 next_y = player_y - 1;
 
             }
-            else if(velocity_y ==0)
-                next_y = player_y;
             else { //아니면 떨어짐
                 next_y = player_y + 1;
 
@@ -429,18 +452,18 @@ void move_player(char input) {
             else
                 last_input = '\0';
             if(next_y < 0) next_y = 0; //점프했는데 하늘에 머리박음
-            printf("%d %d %d %d %c %c\n", player_x, next_x, player_y, next_y, floor_tile, current_tile);
+                
 
             if (velocity_y < 0 && next_y < MAP_HEIGHT && map[stage][next_y][player_x] == '#') { //점프했는데 천장에 머리박음
                 velocity_y = 0;
-            } else if (next_y < MAP_HEIGHT && (map[stage][next_y][player_x] != '#'||( !on_ladder && map[stage][next_y][player_x] == 'H'))) {
+            } else if (next_y < MAP_HEIGHT) {
                 player_y = next_y;
             }
             
             if ((player_y + 1 < MAP_HEIGHT) && (map[stage][player_y + 1][player_x] == '#'||( !on_ladder && map[stage][player_y + 1][player_x] == 'H'))) { // 땅에 착지함
                 is_jumping = 0;
                 velocity_y = 0;
-                if((map[stage][player_y + 1][next_x] != '#' && map[stage][player_y + 1][next_x] != 'H') && map[stage][player_y][next_x] != '#'){ //점프 하강 대각선 시 예외처리
+                if(map[stage][player_y + 1][next_x] != '#' && map[stage][player_y + 1][next_x] != 'H'){ //점프 하강 대각선 시 예외처리
                     is_jumping = 1;
                     velocity_y = -1;
                 }
@@ -476,7 +499,6 @@ void move_enemies() {
 void check_collisions(void) {
     for (int i = 0; i < enemy_count; i++) {
         if (player_x == enemies[i].x && player_y == enemies[i].y) { //적 중 하나에 닿았나요
-            beep_sound();
             heart--; // 충돌시 생명 감소
             heart_discount(); //heart 수 계산하고 종료
             return;
@@ -486,21 +508,8 @@ void check_collisions(void) {
         if (!coins[i].collected && player_x == coins[i].x && player_y == coins[i].y) { // 코인을 먹은적이 있나요? 코인과 같은 위치인가요?
             coins[i].collected = 1;
             score += 20;
-            beep_sound();
         }
     }
-}
-
-//기본적인 시스템 비프음
-void beep_sound(void){
-    #ifdef _WIN32
-        Beep(750, 120);
-    #elif defined(__APPLE__)
-        systemm("afplay /System/Library/Sounds/Glass.aiff &")
-    #elif defined(__linux__)
-        printf("\a");
-        fflush(stdout);
-    #endif
 }
 
 //맵 실행 및 출력 문제들
@@ -542,3 +551,5 @@ void beep_sound(void){
 
 //테스트용 맵 파일이 있습니다. 출구도 쉬운 곳에다 배치해놨고 대충 깰수 있게끔 만들어놨습니다.
 
+//맵 동적 구현 로직 정리: 현재 몇스테이지인지 알려줄 변수, [y][x]로 만들어져있는 이중 배열-> 2중 포인터로 변경
+//
