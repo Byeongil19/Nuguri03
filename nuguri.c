@@ -101,6 +101,21 @@ Coin coins[MAX_COINS];
 int coin_count = 0;
 
 // 함수 선언
+
+void disable_raw_mode();
+void enable_raw_mode();
+void load_maps();
+void init_stage();
+void draw_game();
+void update_game(char input);
+void move_player(char input);
+void move_enemies();
+void check_collisions();
+int kbhit();
+void beep_sound();
+
+int main() {
+
 void disable_raw_mode(void); // // 터미널 Raw 모드 활성화/비활성화
 void enable_raw_mode(void); // 터미널 Raw 모드 활성화/비활성화
 void load_maps(void); // 맵 파일 로드
@@ -168,6 +183,7 @@ int main(void) {
         system("chcp 65001> nul");
         printf("\x1b[?25l"); // 윈도우 환경에서 화면 깜빡임으로 인한 커서 숨기기
     #endif
+
     srand(time(NULL));
     enable_raw_mode();
     title_screen();
@@ -467,6 +483,38 @@ void check_collisions(void) {
     }
 }
 
+
+// 비동기 키보드 입력 확인
+int kbhit() {
+    struct termios oldt, newt;
+    int ch;
+    int oldf;
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+    fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+    ch = getchar();
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    fcntl(STDIN_FILENO, F_SETFL, oldf);
+    if(ch != EOF) {
+        ungetc(ch, stdin);
+        return 1;
+    }
+    return 0;
+}
+
+//기본적인 시스템 비프음
+void beep_sound(void){
+    #ifdef _WIN32
+        beep(750, 120);
+    #else
+        printf("\a");
+        fflush(stdout);
+    #endif
+}
+
 //맵 실행 및 출력 문제들
 //실행 1차 시도 출력중 실패 맵 다운이 덜 받아졌거나 출력중 문제 생긴듯 -> 와 load_file if 조건문 순서 꼬아놨어 출력도 꼬임
 //실행 2차 시도 맵 출력이 1줄씩 띄어짐 -> Q: 출력과정 문제인가? A: 아님 입력받은거 그대로 띄워줌 -> 파일 받을때 논리적 오류 발견 -> 조건문 추가로 해결
@@ -505,3 +553,4 @@ void check_collisions(void) {
 //와 초기 맵 파일에다 장난을 쳐놨습니다. 일단은 맵 크기가 가로 40 세로 20칸이라고 가정하고 맵 다운받도록 만들겠습니다.
 
 //테스트용 맵 파일이 있습니다. 출구도 쉬운 곳에다 배치해놨고 대충 깰수 있게끔 만들어놨습니다.
+
