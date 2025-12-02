@@ -359,7 +359,7 @@ void move_player(char input) {
     int next_x = player_x, next_y = player_y; //기존 위치 저장
     char floor_tile = (player_y + 1 < MAP_HEIGHT) ? map[stage][player_y + 1][player_x] : '#'; //발밑 블럭 확인용 맵 데이터에서 읽을 수 있는 범위인지 확인 -> 아니라면 '#'으로 취급
     char current_tile = map[stage][player_y][player_x]; //지금 위치(추측)
-
+    printf("%d %d %d %d %c %c\n", player_x, next_x, player_y, next_y, floor_tile, current_tile);
     on_ladder = (current_tile == 'H');
     switch (input) { //입력에 따라서 새로운 좌표 생성
         case 'a': next_x--; break;
@@ -373,6 +373,7 @@ void move_player(char input) {
             }
             break;
     }
+    
     if ((input == 'a' || input == 'd') && !is_jumping)
         last_input = input;
     else if (input == '\0' && !is_jumping)
@@ -390,6 +391,8 @@ void move_player(char input) {
                 next_y = player_y - 1;
 
             }
+            else if(velocity_y ==0)
+                next_y = player_y;
             else { //아니면 떨어짐
                 next_y = player_y + 1;
 
@@ -404,18 +407,18 @@ void move_player(char input) {
             else
                 last_input = '\0';
             if(next_y < 0) next_y = 0; //점프했는데 하늘에 머리박음
-                
+            printf("%d %d %d %d %c %c\n", player_x, next_x, player_y, next_y, floor_tile, current_tile);
 
             if (velocity_y < 0 && next_y < MAP_HEIGHT && map[stage][next_y][player_x] == '#') { //점프했는데 천장에 머리박음
                 velocity_y = 0;
-            } else if (next_y < MAP_HEIGHT) {
+            } else if (next_y < MAP_HEIGHT && (map[stage][next_y][player_x] != '#'||( !on_ladder && map[stage][next_y][player_x] == 'H'))) {
                 player_y = next_y;
             }
             
             if ((player_y + 1 < MAP_HEIGHT) && (map[stage][player_y + 1][player_x] == '#'||( !on_ladder && map[stage][player_y + 1][player_x] == 'H'))) { // 땅에 착지함
                 is_jumping = 0;
                 velocity_y = 0;
-                if(map[stage][player_y + 1][next_x] != '#' && map[stage][player_y + 1][next_x] != 'H'){ //점프 하강 대각선 시 예외처리
+                if((map[stage][player_y + 1][next_x] != '#' && map[stage][player_y + 1][next_x] != 'H') && map[stage][player_y][next_x] != '#'){ //점프 하강 대각선 시 예외처리
                     is_jumping = 1;
                     velocity_y = -1;
                 }
