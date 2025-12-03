@@ -174,6 +174,30 @@ int main(void) {
     int game_over = 0;
 
     while (!game_over && stage < MAX_STAGES) {
+        #ifdef _WIN32
+        if (kbhit()) {
+            c = getch();
+            if (c == 'c' ) { //초기화 테스트용 개발 로직
+                init_stage();
+                continue;
+            }
+            if (c == 'q') {
+                game_over = 1;
+                continue;
+            }
+            if (c == '\x1b') { //ESC를 입력 받았을 때 (이거 방향키 입력용)
+                getch(); // '['
+                switch (getch()) { // 점프 없다?
+                    case 'A': c = 'w'; break; // Up
+                    case 'B': c = 's'; break; // Down
+                    case 'C': c = 'd'; break; // Right
+                    case 'D': c = 'a'; break; // Left
+                }
+            }
+        } else {
+            c = '\0';
+        }
+        #else
         if (kbhit()) {
             c = getchar();
             if (c == 'c' ) { //초기화 테스트용 개발 로직
@@ -196,7 +220,7 @@ int main(void) {
         } else {
             c = '\0';
         }
-
+        #endif
         update_game(c); // 플래이어 이동-> 적 이동 -> 충돌감지
         while (kbhit()) getchar(); // 키를 꾹 눌렀을 때 들어간 입력 버퍼 지우기
         draw_game(); //게임화면 그리기
@@ -467,12 +491,14 @@ void check_collisions(void) {
 
 //기본적인 시스템 비프음
 void beep_sound(void){
-    #ifdef _WIN32
-        Beep(750, 120);
-    #else
-        printf("\a");
-        fflush(stdout);
-    #endif
+#ifdef _WIN32
+    Beep(750, 120);
+#elif __APPLE__
+    system("afplay /System/Library/Sounds/Glass.aiff &");
+#else
+    printf("\a");
+    fflush(stdout);
+#endif
 }
 
 //맵 실행 및 출력 문제들
