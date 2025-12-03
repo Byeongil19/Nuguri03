@@ -111,15 +111,10 @@ void move_player(char input); // 플레이어 이동 로직
 void move_enemies(); // 적 이동 로직
 void check_collisions(void); // 충돌 감지 로직
 void heart_discount(void); // heart가 0 일때 종료 함수
-int kbhit(void);
-void sfx_finished_callback(int); //효과음 메모리 해제 콜백
-int init_sdl_mixer(void); //SDL_mixer 초기화
-int play_bgm(int); //-1을 넣으면 무한 루프, 브금 함수
-int play_sfx(void); //효과음 함수
-void close_sdl_mixer(void); //오디오 종료 함수
 void title_screen(void); // 시작 타이틀 함수
 void ending_screen(int is_clear); // 엔딩 화면 함수
 void print_file(const char* filename); // 텍스트 파일 출력함수
+void beep_sound();
 
 //화면 초기화
 #ifdef _WIN32
@@ -158,6 +153,7 @@ void print_file(const char* filename){
 void heart_discount(void){
     if (heart <= 0) {
         print_file("gameover.txt");
+        printf("\n현재 점수: %d\n", score);
         disable_raw_mode();
         exit(0);
     }
@@ -178,6 +174,30 @@ int main(void) {
     int game_over = 0;
 
     while (!game_over && stage < MAX_STAGES) {
+        #ifdef _WIN32
+        if (kbhit()) {
+            c = getch();
+            if (c == 'c' ) { //초기화 테스트용 개발 로직
+                init_stage();
+                continue;
+            }
+            if (c == 'q') {
+                game_over = 1;
+                continue;
+            }
+            if (c == '\x1b') { //ESC를 입력 받았을 때 (이거 방향키 입력용)
+                getch(); // '['
+                switch (getch()) { // 점프 없다?
+                    case 'A': c = 'w'; break; // Up
+                    case 'B': c = 's'; break; // Down
+                    case 'C': c = 'd'; break; // Right
+                    case 'D': c = 'a'; break; // Left
+                }
+            }
+        } else {
+            c = '\0';
+        }
+        #else
         if (kbhit()) {
             c = getchar();
             if (c == 'c' ) { //초기화 테스트용 개발 로직
@@ -200,8 +220,9 @@ int main(void) {
         } else {
             c = '\0';
         }
-
+        #endif
         update_game(c); // 플래이어 이동-> 적 이동 -> 충돌감지
+        while (kbhit()) getchar(); // 키를 꾹 눌렀을 때 들어간 입력 버퍼 지우기
         draw_game(); //게임화면 그리기
         delay(80);
 
@@ -211,6 +232,7 @@ int main(void) {
             if (stage < MAX_STAGES) {
                 init_stage();
             } else {
+                beep_sound();
                 game_over = 1;
                 printf("\x1b[2J\x1b[H");
                 print_file("clear.txt");
@@ -359,7 +381,6 @@ void move_player(char input) {
     int next_x = player_x, next_y = player_y; //기존 위치 저장
     char floor_tile = (player_y + 1 < MAP_HEIGHT) ? map[stage][player_y + 1][player_x] : '#'; //발밑 블럭 확인용 맵 데이터에서 읽을 수 있는 범위인지 확인 -> 아니라면 '#'으로 취급
     char current_tile = map[stage][player_y][player_x]; //지금 위치(추측)
-    printf("%d %d %d %d %c %c\n", player_x, next_x, player_y, next_y, floor_tile, current_tile);
     on_ladder = (current_tile == 'H');
     switch (input) { //입력에 따라서 새로운 좌표 생성
         case 'a': next_x--; break;
@@ -369,7 +390,7 @@ void move_player(char input) {
         case ' ': //스페이스바
             if (!is_jumping && (floor_tile == '#' || on_ladder || floor_tile == 'H')) { // 점프 중이 아니고 밑 타일이 땅일때 or 사다리일때
                 is_jumping = 1; //점프중 표현
-                velocity_y = -2; //점프력 2
+                velocity_y = -3; //점프력 2
             }
             break;
     }
@@ -407,7 +428,6 @@ void move_player(char input) {
             else
                 last_input = '\0';
             if(next_y < 0) next_y = 0; //점프했는데 하늘에 머리박음
-            printf("%d %d %d %d %c %c\n", player_x, next_x, player_y, next_y, floor_tile, current_tile);
 
             if (velocity_y < 0 && next_y < MAP_HEIGHT && map[stage][next_y][player_x] == '#') { //점프했는데 천장에 머리박음
                 velocity_y = 0;
@@ -454,6 +474,7 @@ void move_enemies() {
 void check_collisions(void) {
     for (int i = 0; i < enemy_count; i++) {
         if (player_x == enemies[i].x && player_y == enemies[i].y) { //적 중 하나에 닿았나요
+            beep_sound();
             heart--; // 충돌시 생명 감소
             heart_discount(); //heart 수 계산하고 종료
             return;
@@ -463,8 +484,21 @@ void check_collisions(void) {
         if (!coins[i].collected && player_x == coins[i].x && player_y == coins[i].y) { // 코인을 먹은적이 있나요? 코인과 같은 위치인가요?
             coins[i].collected = 1;
             score += 20;
+            beep_sound();
         }
     }
+}
+
+//기본적인 시스템 비프음
+void beep_sound(void){
+#ifdef _WIN32
+    Beep(750, 120);
+#elif __APPLE__
+    system("afplay /System/Library/Sounds/Glass.aiff &");
+#else
+    printf("\a");
+    fflush(stdout);
+#endif
 }
 
 //맵 실행 및 출력 문제들
@@ -505,3 +539,4 @@ void check_collisions(void) {
 //와 초기 맵 파일에다 장난을 쳐놨습니다. 일단은 맵 크기가 가로 40 세로 20칸이라고 가정하고 맵 다운받도록 만들겠습니다.
 
 //테스트용 맵 파일이 있습니다. 출구도 쉬운 곳에다 배치해놨고 대충 깰수 있게끔 만들어놨습니다.
+
