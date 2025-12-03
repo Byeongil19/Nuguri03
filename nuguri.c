@@ -32,6 +32,7 @@ int current_stage = 0;
 
     // Windows: 키 입력 감지 함수 (kbhit)
     int kbhit(void) { return _kbhit(); }
+    int save_space = 0;
 #else
     // macOS/Linux (Unix) 환경
     void disable_raw_mode(void) {
@@ -255,9 +256,14 @@ int main(void) {
                     case 'D': c = 'a'; break; // Left
                 }
             }
+            
         } else {
             c = '\0';
         }
+        if (save_space) {
+                save_space = 0;
+                c = ' ';
+            }
         #else
         if (kbhit()) {
             c = getchar();
@@ -284,6 +290,24 @@ int main(void) {
         #endif
 
         update_game(c); // 플래이어 이동-> 적 이동 -> 충돌감지
+
+        #ifdef _WIN32
+        while (kbhit()) {
+            char b = getch();
+            if(b == ' ' && !is_jumping && !save_space) {
+                save_space = 1;
+                break; 
+            }
+        }// 키를 꾹 눌렀을 때 들어간 입력 버퍼 지우기 
+        #else
+        while (kbhit()) {
+            char b = getchar();
+            if(b == ' ' && !is_jumping) {
+                ungetc(b, stdin);
+                break; 
+            }
+        }// 키를 꾹 눌렀을 때 들어간 입력 버퍼 지우기 
+        #endif
         draw_game(); //게임화면 그리기
         delay(80);
 
@@ -463,6 +487,7 @@ void move_player(char input) {
     char current_tile = map[player_y][player_x]; //지금 위치(추측)
     printf("%d %d %d %d %c %c\n", player_x, next_x, player_y, next_y, floor_tile, current_tile);
     on_ladder = (current_tile == 'H');
+    
     switch (input) { //입력에 따라서 새로운 좌표 생성
         case 'a': next_x--; break;
         case 'd': next_x++; break;
@@ -480,6 +505,7 @@ void move_player(char input) {
         last_input = input;
     else if (input == '\0' && !is_jumping)
         last_input = '\0';
+    printf("'%c' '%c' '%c' '%c'\n", input, floor_tile, current_tile, last_input);
     if ((on_ladder && (input == 'w' || input == 's')) || (floor_tile == 'H' && input == 's')) { //사다리 이동
         if(next_y >= 0 && next_y < MAP_HEIGHT && map[player_y][player_x] != '#') {
             player_y = next_y;
@@ -499,7 +525,7 @@ void move_player(char input) {
                 next_y = player_y + 1;
 
             }
-            if(input == ' ' || input == '\0') { // 자연스러운 점프 로직 -> 왜 앞으로 가다가 점프할 때는 제자리 점프만 하는가? (제가 테스트 할 때는 문제가 없었습니다!)
+            if(input == ' ' || input == '\0') { // 자연스러운 점프 로직 -> 왜 앞으로 가다가 점프할 때는 제자리 점프만 하는가?
                 switch (last_input) {
                     case 'a': next_x--; break;
                     case 'd': next_x++; break;
