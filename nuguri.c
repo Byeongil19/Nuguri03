@@ -497,7 +497,7 @@ void move_player(char input) {
     else if (input == '\0' && !is_jumping)
         last_input = '\0';
     if ((on_ladder && (input == 'w' || input == 's')) || (floor_tile == 'H' && input == 's')) { //사다리 이동
-        if(next_y >= 0 && next_y < MAP_HEIGHT && map[player_y][player_x] != '#') {
+        if(next_y >= 0 && next_y < MAP_HEIGHT && map[next_y][player_x] != '#') {
             player_y = next_y;
             is_jumping = 0;
             velocity_y = 0;
@@ -528,7 +528,7 @@ void move_player(char input) {
 
             if (velocity_y < 0 && next_y < MAP_HEIGHT && map[player_y][player_x] == '#') { //점프했는데 천장에 머리박음
                 velocity_y = 0;
-            } else if (next_y < MAP_HEIGHT && (map[player_y][player_x] != '#'||( !on_ladder && map[player_y][player_x] == 'H'))) {
+            } else if (next_y < MAP_HEIGHT && (map[next_y][player_x] != '#'||( !on_ladder && map[next_y][player_x] == 'H'))) {
                 player_y = next_y;
             }
             
@@ -537,7 +537,7 @@ void move_player(char input) {
                 velocity_y = 0;
                 if((map[player_y + 1][next_x] != '#' && map[player_y + 1][next_x] != 'H') && map[player_y][next_x] != '#'){ //점프 하강 대각선 시 예외처리
                     is_jumping = 1;
-                    velocity_y = -1;
+                    velocity_y = 1;
                 }
             }
             velocity_y++; // 점프파워 감소
