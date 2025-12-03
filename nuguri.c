@@ -31,6 +31,7 @@
 
     // Windows: 키 입력 감지 함수 (kbhit)
     int kbhit(void) { return _kbhit(); }
+    int save_space = 0;
 #else
     // macOS/Linux (Unix) 환경
     void disable_raw_mode(void) {
@@ -194,9 +195,14 @@ int main(void) {
                     case 'D': c = 'a'; break; // Left
                 }
             }
+            
         } else {
             c = '\0';
         }
+        if (save_space) {
+                save_space = 0;
+                c = ' ';
+            }
         #else
         if (kbhit()) {
             c = getchar();
@@ -222,7 +228,23 @@ int main(void) {
         }
         #endif
         update_game(c); // 플래이어 이동-> 적 이동 -> 충돌감지
-        while (kbhit()) getchar(); // 키를 꾹 눌렀을 때 들어간 입력 버퍼 지우기
+        #ifdef _WIN32
+        while (kbhit()) {
+            char b = getch();
+            if(b == ' ' && !is_jumping && !save_space) {
+                save_space = 1;
+                break; 
+            }
+        }// 키를 꾹 눌렀을 때 들어간 입력 버퍼 지우기 
+        #else
+        while (kbhit()) {
+            char b = getchar();
+            if(b == ' ' && !is_jumping) {
+                ungetc(b, stdin);
+                break; 
+            }
+        }// 키를 꾹 눌렀을 때 들어간 입력 버퍼 지우기 
+        #endif
         draw_game(); //게임화면 그리기
         delay(80);
 
@@ -382,6 +404,7 @@ void move_player(char input) {
     char floor_tile = (player_y + 1 < MAP_HEIGHT) ? map[stage][player_y + 1][player_x] : '#'; //발밑 블럭 확인용 맵 데이터에서 읽을 수 있는 범위인지 확인 -> 아니라면 '#'으로 취급
     char current_tile = map[stage][player_y][player_x]; //지금 위치(추측)
     on_ladder = (current_tile == 'H');
+    
     switch (input) { //입력에 따라서 새로운 좌표 생성
         case 'a': next_x--; break;
         case 'd': next_x++; break;
@@ -399,6 +422,7 @@ void move_player(char input) {
         last_input = input;
     else if (input == '\0' && !is_jumping)
         last_input = '\0';
+    printf("'%c' '%c' '%c' '%c'\n", input, floor_tile, current_tile, last_input);
     if ((on_ladder && (input == 'w' || input == 's')) || (floor_tile == 'H' && input == 's')) { //사다리 이동
         if(next_y >= 0 && next_y < MAP_HEIGHT && map[stage][next_y][player_x] != '#') {
             player_y = next_y;
