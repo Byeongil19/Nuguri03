@@ -17,7 +17,7 @@
 int MAP_WIDTH = 0; // 높이 너비를 변수로 변경 -> 동적 메모리 처리
 int MAP_HEIGHT = 0; 
 int current_stage = 0;
-#define MAX_STAGES 5 // map.txt에 스테이지 추가할때 증가시킬것
+#define MAX_STAGES 3 // map.txt에 스테이지 추가할때 증가시킬것
 #define MAX_ENEMIES 15 // 최대 적 개수 증가
 #define MAX_COINS 30   // 최대 코인 개수 증가
 
@@ -239,10 +239,6 @@ int main(void) {
 
         if (kbhit()) {
             c = getch();
-            if (c == 'c' ) { //초기화 테스트용 개발 로직
-                init_stage();
-                continue;
-            }
             if (c == 'q') {
                 game_over = 1;
                 continue;
@@ -267,10 +263,6 @@ int main(void) {
         #else
         if (kbhit()) {
             c = getchar();
-            if (c == 'c' ) { //초기화 테스트용 개발 로직
-                init_stage();
-                continue;
-            }
             if (c == 'q') {
                 game_over = 1;
                 continue;
@@ -485,7 +477,6 @@ void move_player(char input) {
     int next_x = player_x, next_y = player_y; //기존 위치 저장
     char floor_tile = (player_y + 1 < MAP_HEIGHT) ? map[player_y + 1][player_x] : '#'; //발밑 블럭 확인용 맵 데이터에서 읽을 수 있는 범위인지 확인 -> 아니라면 '#'으로 취급
     char current_tile = map[player_y][player_x]; //지금 위치(추측)
-    printf("%d %d %d %d %c %c\n", player_x, next_x, player_y, next_y, floor_tile, current_tile);
     on_ladder = (current_tile == 'H');
     
     switch (input) { //입력에 따라서 새로운 좌표 생성
@@ -505,7 +496,6 @@ void move_player(char input) {
         last_input = input;
     else if (input == '\0' && !is_jumping)
         last_input = '\0';
-    printf("'%c' '%c' '%c' '%c'\n", input, floor_tile, current_tile, last_input);
     if ((on_ladder && (input == 'w' || input == 's')) || (floor_tile == 'H' && input == 's')) { //사다리 이동
         if(next_y >= 0 && next_y < MAP_HEIGHT && map[player_y][player_x] != '#') {
             player_y = next_y;
@@ -535,7 +525,6 @@ void move_player(char input) {
             else
                 last_input = '\0';
             if(next_y < 0) next_y = 0; //점프했는데 하늘에 머리박음
-            printf("%d %d %d %d %c %c\n", player_x, next_x, player_y, next_y, floor_tile, current_tile);
 
             if (velocity_y < 0 && next_y < MAP_HEIGHT && map[player_y][player_x] == '#') { //점프했는데 천장에 머리박음
                 velocity_y = 0;
@@ -606,43 +595,3 @@ void beep_sound(void){
         fflush(stdout);
     #endif
 }
-
-//맵 실행 및 출력 문제들
-//실행 1차 시도 출력중 실패 맵 다운이 덜 받아졌거나 출력중 문제 생긴듯 -> 와 load_file if 조건문 순서 꼬아놨어 출력도 꼬임
-//실행 2차 시도 맵 출력이 1줄씩 띄어짐 -> Q: 출력과정 문제인가? A: 아님 입력받은거 그대로 띄워줌 -> 파일 받을때 논리적 오류 발견 -> 조건문 추가로 해결
-//실행 3차 시도 맵 출력시 맵 바닥에 다음 맵 천장이 붙어서 나옴 -> 일단 실행용으로 조건문 하드코딩시 실행가능하나 구조적 취약점 수정필요(수정됨)
-//실행 4차 시도 하드코딩된 코드 재구축 -> 망할 엔터키로 줄 구분 및 스테이지 구분 혼용이 문제 -> 다시 로직 접근 -> 파일 형식 정확히 파악후 접근 -> 해결 성공 하지만 추후 가변 맵 생성시 장애물 될 것(아마도)
-
-
-
-//실행 5차 시도 (중요 로직 테스트)
-//플래이어 상승 하강시 대각선 이동 문제 -> 대각선 경로가 벽인데 왜 이동되지? -> 대각선 이동 구현이 필요해짐 혹은 x값과 y값이 만영되는 순서를 영리하게 정하던가
-//정말 단순하게 구현된 점프 문제 -> 와 이게 점프? 그냥 위치값을 -2했다 다시 +2할 뿐이다. -> 점프력 구현 점프 자체는 잘 뜀 좌우 이동이 안되서 문제
-//밑 칸이 사다리인데 내려갈 수 가 없다. -> 해당 로직 수정 문제 해결됨
-//왜 밑 칸이 사다리인대 점프를 못하지? -> 로직 수정 문제 해결됨
-//공중에 있는 적은 이동하지 못한다 -> ENEMY 구조체에 fly 변수 추가 맵 생성때 적 밑이 '#'가 아니라면 적은 날아다니는 것으로 간주합니다.
-
-//수정된 오류들
-//점프를 구현한 방법 점프키 인식했을때 점프력을 부여해서 그만큼 y갚을 한 프래임씩 움직이게 함 (점프시 매끄러운 좌 우 이동은 아직입니다!)
-//점프시의 충돌감지 로직이 천장에 머리를 박은 것을 감지하지 못함 ->해결함 로직 오류였음
-
-//생각만해도 머리 깨지는 오류들 (해결 안됨)
-//그냥 하강시 대각선 이동 로직이 벽을 감지하지 못함 -> y값을 계산한 뒤 x값 반영함 -----잠깐만 그러면 대각선 이동을 구현한게 아닌데?
-//점프시의 좌우 이동이 안됨 -> 입력 받을때 ㄱㄱㄱㄱㄱㄱㄱㄱㄱ누르다가 스패이스 누르면 기존 ㄱ 입력이 끊기죠? 같은 현상이었습니다... 와 이거 어케 해결함?
-
-//코인 및 적 출구등등의 접촉은 이동 로직이 잘 되어 있다면 맛갈 일은 없습니다.(불확신)
-
-//오류해결에 도움 되라고 넣은 로직들
-//플레이어 이동 로직에다가 지금 각 변수값이 무엇인지 출력하게끔 만들어 놨습니다. q키를 눌러 멈췄을때 위로 올려 보시면 게임화면 위쪽에 출력이 되어 있습니다. 테스트용
-//c를 누르면 맵이 초기화 되는 로직을 넣어 놨습니다 테스트할때 사용하고 제출할땐 지우세요.
-
-//애매한 것
-//사다리 위에서 점프한 뒤에 떨어지는 건 당연한 거지만 사다리 맨 위에서 점프한 뒤 떨어지는것도 당연한가? -> 일단은 맨 위에 착지하는 것으로 함
-
-//가끔 키 인식이 씹히는 것 같은 느낌이 듭니다. 노트북 환경에서 작업해서 기기 문제일 수도 있지만 입력 버퍼의 고질적인 문제일 수도 있습니다.
-//지연속도를 줄이면 게임이 굉장히 힘들어집니다.
-
-//와 초기 맵 파일에다 장난을 쳐놨습니다. 일단은 맵 크기가 가로 40 세로 20칸이라고 가정하고 맵 다운받도록 만들겠습니다.
-
-//테스트용 맵 파일이 있습니다. 출구도 쉬운 곳에다 배치해놨고 대충 깰수 있게끔 만들어놨습니다.
-
