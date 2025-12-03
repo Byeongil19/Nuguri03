@@ -397,7 +397,7 @@ void move_player(char input) {
                 next_y = player_y + 1;
 
             }
-            if(input == ' ' || input == '\0') { // 자연스러운 점프 로직 -> 왜 앞으로 가다가 점프할 때는 제자리 점프만 하는가? (제가 테스트 할 때는 문제가 없었습니다!)
+            if(input == ' ' || input == '\0') { // 자연스러운 점프 로직 -> 왜 앞으로 가다가 점프할 때는 제자리 점프만 하는가?
                 switch (last_input) {
                     case 'a': next_x--; break;
                     case 'd': next_x++; break;
