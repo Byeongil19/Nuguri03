@@ -153,6 +153,7 @@ void print_file(const char* filename){
 void heart_discount(void){
     if (heart <= 0) {
         print_file("gameover.txt");
+        printf("\n현재 점수: %d\n", score);
         disable_raw_mode();
         exit(0);
     }
@@ -174,7 +175,6 @@ int main(void) {
 
     while (!game_over && stage < MAX_STAGES) {
         #ifdef _WIN32
-
         if (kbhit()) {
             c = getch();
             if (c == 'c' ) { //초기화 테스트용 개발 로직
@@ -221,8 +221,8 @@ int main(void) {
             c = '\0';
         }
         #endif
-
         update_game(c); // 플래이어 이동-> 적 이동 -> 충돌감지
+        while (kbhit()) getchar(); // 키를 꾹 눌렀을 때 들어간 입력 버퍼 지우기
         draw_game(); //게임화면 그리기
         delay(80);
 
@@ -381,7 +381,6 @@ void move_player(char input) {
     int next_x = player_x, next_y = player_y; //기존 위치 저장
     char floor_tile = (player_y + 1 < MAP_HEIGHT) ? map[stage][player_y + 1][player_x] : '#'; //발밑 블럭 확인용 맵 데이터에서 읽을 수 있는 범위인지 확인 -> 아니라면 '#'으로 취급
     char current_tile = map[stage][player_y][player_x]; //지금 위치(추측)
-    printf("%d %d %d %d %c %c\n", player_x, next_x, player_y, next_y, floor_tile, current_tile);
     on_ladder = (current_tile == 'H');
     switch (input) { //입력에 따라서 새로운 좌표 생성
         case 'a': next_x--; break;
@@ -391,7 +390,7 @@ void move_player(char input) {
         case ' ': //스페이스바
             if (!is_jumping && (floor_tile == '#' || on_ladder || floor_tile == 'H')) { // 점프 중이 아니고 밑 타일이 땅일때 or 사다리일때
                 is_jumping = 1; //점프중 표현
-                velocity_y = -2; //점프력 2
+                velocity_y = -3; //점프력 2
             }
             break;
     }
@@ -429,7 +428,6 @@ void move_player(char input) {
             else
                 last_input = '\0';
             if(next_y < 0) next_y = 0; //점프했는데 하늘에 머리박음
-            printf("%d %d %d %d %c %c\n", player_x, next_x, player_y, next_y, floor_tile, current_tile);
 
             if (velocity_y < 0 && next_y < MAP_HEIGHT && map[stage][next_y][player_x] == '#') { //점프했는데 천장에 머리박음
                 velocity_y = 0;
@@ -493,12 +491,14 @@ void check_collisions(void) {
 
 //기본적인 시스템 비프음
 void beep_sound(void){
-    #ifdef _WIN32
-        Beep(750, 120);
-    #else
-        printf("\a");
-        fflush(stdout);
-    #endif
+#ifdef _WIN32
+    Beep(750, 120);
+#elif __APPLE__
+    system("afplay /System/Library/Sounds/Glass.aiff &");
+#else
+    printf("\a");
+    fflush(stdout);
+#endif
 }
 
 //맵 실행 및 출력 문제들
