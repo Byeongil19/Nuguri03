@@ -6,7 +6,7 @@ https://github.com/Byeongil19/Nuguri03
 ```
 
 ## 학번 / 이름
-- 20223120 / 안병일 
+- 20223120 / 안병일(조장) 
 - 20243099 / 박상준
 - 20213082 / 구주안
 - 20235237 / 방서연
@@ -19,7 +19,7 @@ https://github.com/Byeongil19/Nuguri03
 gcc -o nuguri.exe nuguri.c
 
 # 실행
-nuguri.exe
+.\nuguri.exe
 ```
 
 ### Linux
@@ -90,12 +90,20 @@ main()
 ### 타이틀 화면
 ![타이틀 화면](./image/title.png)
 
-
 ### 클리어 화면
 ![클리어 화면](./image/clear.png)
 
 ### 게임 오버 화면
 ![게임 오버 화면](./image/gameover.png)
+
+### 스테이지1 화면
+![스테이지1 화면](./image/stage1.png)
+
+### 스테이지2 화면
+![스테이지2 화면](./image/stage2.png)
+
+### 스테이지3 화면
+![스테이지3 화면](./image/stage3.png)
 
 ## 개발 중 발생한 OS 호환성 문제와 해결 과정
 
@@ -157,6 +165,17 @@ char b = getchar();를 사용하여 입력 버퍼를 지우도록 함. 그리고
 **해결 방법:**
 ```
 Windows 환경에서는 printf("\a")를 사용할 수 없기때문에 Beep(750, 120)을 사용함.
+```
+
+### 6. Windows 환경에서 특수문자나 한글이 깨지는 현상이 발생했습니다.
+**문제점:**
+- Windows 콘솔(PowerShell)은 기본적으로 CP949(ANSI) 인코딩을 사용하여 UTF-8 기반의 
+출력(한글, 특수문자, ANSI Escape Code)이 깨져 보이는 문제가 발생함.
+
+**해결 방법:**
+```
+chcp 65001 명령을 통해 콘솔을 UTF-8로 강제 설정하여 깨지는 현상을 해결하고 Linux/macOS와 동일한
+출력 결과를 가져올 수 있도록 함.
 ```
 ## 점프 로직 수정
 **점프력 부여**

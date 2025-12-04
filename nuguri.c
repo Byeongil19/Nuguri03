@@ -6,7 +6,6 @@
 #ifdef _WIN32
     #include <windows.h>
     #include <conio.h>  //getch, kbhit
-    #include <mmsystem.h>
 #else
     #include <unistd.h>
     #include <termios.h>
