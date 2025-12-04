@@ -211,6 +211,7 @@ void print_file(const char* filename){
 void heart_discount(void){
     if (heart <= 0) {
         print_file("gameover.txt");
+        printf("\n현재 점수: %d\n", score);
         disable_raw_mode();
         exit(0);
     }
@@ -236,20 +237,21 @@ int main(void) {
 
     while (!game_over && stage < MAX_STAGES) {
         #ifdef _WIN32
-
         if (kbhit()) {
-            c = getch();
+            c = getch(); // 키 입력 받기 (윈도우에서 방향키는 2바이트로 입력됨)
             if (c == 'q') {
                 game_over = 1;
                 continue;
             }
-            if (c == '\x1b') { //ESC를 입력 받았을 때 (이거 방향키 입력용)
-                getch(); // '['
-                switch (getch()) { // 점프 없다?
-                    case 'A': c = 'w'; break; // Up
-                    case 'B': c = 's'; break; // Down
-                    case 'C': c = 'd'; break; // Right
-                    case 'D': c = 'a'; break; // Left
+            // 윈도우에서는 방향키가 2바이트로 입력 되기 때문에 224, -32 (컴파일러의 char 부호 설정에 따라 다름)
+            // c가 방향키가 맞는지 확인.
+            if (c == 224 || c == -32) {    
+                int key = getch(); // 실제 방향키의 바이트 읽기
+                switch (key) {
+                    case 72: c = 'w'; break; // UP
+                    case 80: c = 's'; break; // DOWN
+                    case 75: c = 'a'; break; // LEFT
+                    case 77: c = 'd'; break; // RIGHT
                 }
             }
             
@@ -487,7 +489,7 @@ void move_player(char input) {
         case ' ': //스페이스바
             if (!is_jumping && (floor_tile == '#' || on_ladder || floor_tile == 'H')) { // 점프 중이 아니고 밑 타일이 땅일때 or 사다리일때
                 is_jumping = 1; //점프중 표현
-                velocity_y = -2; //점프력 2
+                velocity_y = -3; //점프력 3
             }
             break;
     }
@@ -590,6 +592,8 @@ void check_collisions(void) {
 void beep_sound(void){
     #ifdef _WIN32
         Beep(750, 120);
+    #elif __APPLE__
+        system("afplay /System/Library/Sounds/Glass.aiff &");
     #else
         printf("\a");
         fflush(stdout);
