@@ -186,7 +186,7 @@ void alloc_map(){
 
 #else
     void clrscr() {
-        printf("\x1b[2J\x1b[H");
+        printf("\033[2J\033[H");
     }
 
     void delay(int ms){
@@ -220,7 +220,7 @@ void heart_discount(void){
 int main(void) {
     #ifdef _WIN32 //윈도우용 화면 출력 깨짐 방지 콘솔 UTF-8 고정 화면출력
         system("chcp 65001> nul");
-        printf("\x1b[?25l"); // 윈도우 환경에서 화면 깜빡임으로 인한 커서 숨기기
+        printf("\033[?25l"); // 윈도우 환경에서 화면 깜빡임으로 인한 커서 숨기기
     #endif
     srand(time(NULL));
     enable_raw_mode();
@@ -269,7 +269,7 @@ int main(void) {
                 game_over = 1;
                 continue;
             }
-            if (c == '\x1b') { //ESC를 입력 받았을 때 (이거 방향키 입력용)
+            if (c == '\033') { //ESC를 입력 받았을 때 (이거 방향키 입력용)
                 getchar(); // '['
                 switch (getchar()) { // 점프 없다?
                     case 'A': c = 'w'; break; // Up
@@ -302,10 +302,17 @@ int main(void) {
             }
         }// 키를 꾹 눌렀을 때 들어간 입력 버퍼 지우기 
         #endif
+        
         draw_game(); //게임화면 그리기
-        delay(80);
+        
+        #ifdef _WIN32
+            delay(50);   // 윈도우는 Sleep이 더 느리므로 리눅스와 다르게 설정.
+        #else
+            delay(80);
+        #endif
 
         if (map[player_y][player_x] == 'E') { //출구 도착
+            beep_sound();
             stage++;
             score += 100;
             if (stage < MAX_STAGES) {
@@ -316,16 +323,15 @@ int main(void) {
                 load_maps();
                 init_stage();
             } else {
-                beep_sound();
                 game_over = 1;
-                printf("\x1b[2J\x1b[H");
+                printf("\033[2J\033[H");
                 print_file("clear.txt");
                 printf("\n최종 점수: %d\n", score);
             }
         }
     }
     #ifdef _WIN32
-    printf("\x1b[?25h");    // Windows에서만 보이기
+    printf("\033[?25h");    // Windows에서만 보이기
     #endif
     free_map();
     disable_raw_mode();//터미널 row 비활성화
@@ -430,7 +436,7 @@ void draw_game(void) {
     clrscr();
     #endif
     
-    printf("Stage: %d | Score: %d | Heart: %d \n", stage + 1, score, heart);
+    printf("Stage: %d | Score: %d | Heart: %d         \n", stage + 1, score, heart);
     printf("조작: ← → (이동), ↑ ↓ (사다리), Space (점프), q (종료)\n");
 
     char display_map[MAP_HEIGHT][MAP_WIDTH + 1];
@@ -576,6 +582,7 @@ void check_collisions(void) {
             beep_sound();
             heart--; // 충돌시 생명 감소
             heart_discount(); //heart 수 계산하고 종료
+            init_stage();  // 충돌시 리스폰
             return;
         }
     }
@@ -592,8 +599,6 @@ void check_collisions(void) {
 void beep_sound(void){
     #ifdef _WIN32
         Beep(750, 120);
-    #elif __APPLE__
-        system("afplay /System/Library/Sounds/Glass.aiff &");
     #else
         printf("\a");
         fflush(stdout);
